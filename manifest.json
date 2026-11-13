@@ -1,0 +1,13 @@
+{
+  "name": "HelpDesk Interview Lab",
+  "short_name": "Interview Lab",
+  "description": "PWA offline pentru pregatire interviu junior PHP pe proiectul HelpDesk Mini.",
+  "start_url": "./index.html#/dashboard",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5ead6",
+  "theme_color": "#0d3328",
+  "icons": [
+    { "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

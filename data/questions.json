@@ -1,0 +1,3892 @@
+[
+  {
+    "id": "php-h-001",
+    "type": "code",
+    "category": "security",
+    "difficulty": 2,
+    "priority": 5,
+    "title": "Ce face h()?",
+    "source": "helpers.php:5",
+    "prompt": "Explica exact de ce exista functia h() si cand trebuie folosita.",
+    "snippet": "function h(?string $value): string\n{\n    return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8');\n}",
+    "answer": "h() escape-uieste textul inainte sa fie afisat in HTML. Previne XSS pentru date venite de la user. ENT_QUOTES scapa atat ghilimelele duble cat si apostroful, important mai ales in atribute HTML. Se foloseste la output, nu la salvarea in baza de date.",
+    "followup": "Ce s-ar intampla daca ai folosi innerHTML sau echo direct pentru descrierea ticketului?"
+  },
+  {
+    "id": "auth-session-001",
+    "type": "code",
+    "category": "auth",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "Session fixation",
+    "source": "login.php:33",
+    "prompt": "De ce se apeleaza session_regenerate_id(true) imediat dupa ce parola este verificata?",
+    "snippet": "if ($user === false || !password_verify($password, $user['password_hash'])) {\n    $errors[] = 'Invalid email or password.';\n} else {\n    session_regenerate_id(true);\n    $_SESSION['user_id'] = $user['id'];\n}",
+    "answer": "Pentru a preveni session fixation. Dupa autentificare se schimba ID-ul sesiunii, iar true sterge sesiunea veche. Astfel un atacator care a fortat/vazut un ID inainte de login nu il poate folosi dupa login.",
+    "followup": "De ce mesajul de eroare este vag: Invalid email or password?"
+  },
+  {
+    "id": "pdo-001",
+    "type": "multi_select",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "PDO corect",
+    "source": "db.php:13",
+    "prompt": "Care afirmatii sunt adevarate despre configurarea PDO din proiect?",
+    "options": [
+      "ERRMODE_EXCEPTION ajuta sa nu esueze silentios query-urile",
+      "FETCH_ASSOC intoarce randuri ca array asociativ",
+      "EMULATE_PREPARES false forteaza prepared statements native",
+      "FETCH_ASSOC protejeaza automat de CSRF",
+      "PDO inlocuieste nevoia de validare server-side"
+    ],
+    "correct": [
+      0,
+      1,
+      2
+    ],
+    "answer": "Primele trei sunt corecte. PDO ajuta la acces DB si prepared statements, dar nu rezolva CSRF si nu elimina validarea server-side.",
+    "followup": "Care este diferenta dintre SQL injection si CSRF?"
+  },
+  {
+    "id": "status-rowcount-001",
+    "type": "code",
+    "category": "debugging",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Bug-ul rowCount",
+    "source": "status_update.php:40",
+    "prompt": "Un user selecteaza statusul deja salvat si primeste Ticket not found. De ce?",
+    "snippet": "$stmt = $pdo->prepare('UPDATE tickets SET status = ? WHERE id = ? AND user_id = ?');\n$stmt->execute([$status, $id, current_user_id()]);\n\nif ($stmt->rowCount() === 0) {\n    json_error(404, 'Ticket not found.');\n}",
+    "answer": "Pentru UPDATE, rowCount poate fi 0 cand randul exista dar valoarea nu s-a schimbat. Codul confunda rand neafectat cu rand inexistent. Fix: verifici intai existenta ticketului cu id si user_id, apoi faci update, sau tratezi update-ul idempotent ca succes.",
+    "followup": "De ce eroarea 404 nu ar trebui sa spuna daca ticketul exista dar apartine altui user?"
+  },
+  {
+    "id": "csrf-001",
+    "type": "scenario",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "POST nu inseamna protectie",
+    "source": "ticket_delete.php",
+    "prompt": "Formularul de delete foloseste POST si verifica user_id in query. Ce vulnerabilitate importanta ramane?",
+    "parts": [
+      "Identifica vulnerabilitatea",
+      "Explica atacul pe intelesul unui junior",
+      "Spune fixul minim"
+    ],
+    "answer": "Ramane CSRF. Un site extern poate forta browserul unui user logat sa trimita un POST catre aplicatie, iar cookie-ul de sesiune se trimite automat. Fixul minim: token random in $_SESSION, hidden input in formular si validare pe fiecare request care modifica datele.",
+    "followup": "Cum ai adapta fixul pentru endpointurile JSON status_update.php si ticket_note_add.php?"
+  },
+  {
+    "id": "register-race-001",
+    "type": "scenario",
+    "category": "debugging",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Race condition la register",
+    "source": "register.php:39",
+    "prompt": "Doua requesturi incearca sa creeze acelasi email simultan. Ce se poate intampla?",
+    "answer": "Ambele pot trece de SELECT id FROM users WHERE email = ?, apoi una reuseste INSERT iar cealalta loveste unique key uq_users_email si arunca PDOException. Trebuie try/catch pe INSERT si tratare pentru SQLSTATE 23000 cu mesaj prietenos.",
+    "followup": "De ce unique indexul ramane obligatoriu chiar daca verifici emailul in PHP?"
+  },
+  {
+    "id": "auth-logout-001",
+    "type": "mcq",
+    "category": "auth",
+    "difficulty": 2,
+    "priority": 4,
+    "title": "Logout complet",
+    "source": "logout.php",
+    "prompt": "Care combinatie descrie cel mai bine un logout complet in PHP?",
+    "options": [
+      "Doar redirect la login",
+      "Golire $_SESSION, expirare cookie PHPSESSID si session_destroy",
+      "Doar session_destroy",
+      "Stergere rand user din baza"
+    ],
+    "correct": [
+      1
+    ],
+    "answer": "Logout complet inseamna curatare date server-side, expirarea cookie-ului de sesiune din browser si distrugerea sesiunii. Redirectul singur nu invalideaza nimic."
+  },
+  {
+    "id": "require-login-001",
+    "type": "code",
+    "category": "security",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "De ce exit dupa header?",
+    "source": "helpers.php:25",
+    "prompt": "Ce risc apare daca stergi exit din require_login()?",
+    "snippet": "function require_login(): void\n{\n    if (current_user_id() === null) {\n        header('Location: login.php');\n        exit;\n    }\n}",
+    "answer": "header('Location') trimite doar un header catre client. Fara exit, scriptul PHP continua si poate genera continut sensibil. Un client non-browser poate ignora redirectul si citi raspunsul.",
+    "followup": "Unde este apelata functia require_login in proiect?"
+  },
+  {
+    "id": "ticket-new-001",
+    "type": "scenario",
+    "category": "crud",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Creare ticket cu notite",
+    "source": "ticket_new.php:18",
+    "prompt": "Cum salveaza aplicatia working notes inainte ca ticketul sa aiba ID?",
+    "answer": "Frontendul tine notitele intr-un array JS si pune JSON-ul intr-un hidden input working_notes. La POST, PHP decodeaza JSON-ul, insereaza ticketul, ia ID-ul cu lastInsertId si apoi insereaza fiecare nota cu ticket_id-ul nou.",
+    "followup": "Ce problema de atomicitate apare daca insertul ticketului reuseste dar o nota esueaza?"
+  },
+  {
+    "id": "transaction-001",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Cand folosesti tranzactie?",
+    "source": "ticket_new.php:38",
+    "prompt": "De ce ar fi utila o tranzactie la crearea unui ticket cu mai multe notite?",
+    "answer": "Pentru atomicitate: ticketul si notitele ar trebui sa fie salvate impreuna sau deloc. beginTransaction, commit si rollBack previn starea partiala in care ticketul exista, dar notitele au esuat.",
+    "followup": "Ce alte flow-uri din proiect ar putea beneficia de tranzactii?"
+  },
+  {
+    "id": "schema-001",
+    "type": "multi_select",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Schema relationala",
+    "source": "schema.sql",
+    "prompt": "Ce roluri au foreign keys si indexurile din schema?",
+    "options": [
+      "FK tickets.user_id garanteaza ca ticketul apartine unui user existent",
+      "ON DELETE CASCADE sterge automat tichetele userului sters",
+      "idx_tickets_user ajuta SELECT ... WHERE user_id = ?",
+      "idx_tickets_status cripteaza statusul",
+      "ENUM limiteaza valorile statusului"
+    ],
+    "correct": [
+      0,
+      1,
+      2,
+      4
+    ],
+    "answer": "FK-urile asigura integritate, cascade curata date dependente, indexurile accelereaza cautarile, iar ENUM limiteaza statusurile la valorile permise."
+  },
+  {
+    "id": "fetch-credentials-001",
+    "type": "mcq",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "credentials same-origin",
+    "source": "assets/app.js:17",
+    "prompt": "De ce foloseste fetch credentials: 'same-origin'?",
+    "options": [
+      "Pentru a trimite cookie-ul de sesiune catre acelasi origin",
+      "Pentru a cripta automat JSON-ul",
+      "Pentru a transforma POST in GET",
+      "Pentru a dezactiva CORS"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "Trimite cookie-urile pentru acelasi origin, inclusiv PHPSESSID, astfel endpointul PHP poate identifica userul logat."
+  },
+  {
+    "id": "notes-xss-001",
+    "type": "code",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "textContent vs innerHTML",
+    "source": "assets/notes.js:42",
+    "prompt": "De ce este bine ca notes.js foloseste textContent pentru nota primita de la server?",
+    "snippet": "var text = document.createElement('p');\ntext.className = 'note-text';\ntext.textContent = result.data.note.note;",
+    "answer": "textContent insereaza text literal, nu interpreteaza taguri HTML. Daca nota contine <script>, va fi afisata ca text, nu executata. innerHTML ar crea risc XSS daca datele nu sunt sanitizate perfect.",
+    "followup": "Care este echivalentul pe partea PHP?"
+  },
+  {
+    "id": "nl2br-001",
+    "type": "code",
+    "category": "php",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "nl2br + h",
+    "source": "ticket_view.php:64",
+    "prompt": "De ce ordinea nl2br(h($ticket['description'])) este importanta?",
+    "snippet": "<p class=\"description\"><?= nl2br(h($ticket['description'])) ?></p>",
+    "answer": "Mai intai escape-uim continutul userului cu h(), apoi transformam newline-urile in <br>. Daca ai interpreta HTML-ul userului inainte de escape, ai risca XSS."
+  },
+  {
+    "id": "ownership-001",
+    "type": "scenario",
+    "category": "security",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "Ownership check",
+    "source": "ticket_view.php:12",
+    "prompt": "De ce aproape toate query-urile pe tickets includ AND user_id = current_user_id()?",
+    "answer": "Pentru autorizare la nivel de obiect. Loginul spune cine esti, dar user_id in query verifica daca ai dreptul la acel ticket. Fara asta, un user ar putea ghici id-ul altui ticket si l-ar vedea/modifica."
+  },
+  {
+    "id": "method-001",
+    "type": "mcq",
+    "category": "crud",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "GET vs POST",
+    "source": "ticket_delete.php",
+    "prompt": "De ce delete ar trebui facut prin POST, nu prin GET?",
+    "options": [
+      "GET ar trebui sa fie safe/idempotent si poate fi declansat de linkuri, preview sau crawler",
+      "POST garanteaza automat CSRF protection",
+      "GET nu poate trimite parametri",
+      "POST este intotdeauna criptat"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "GET nu ar trebui sa modifice starea. POST este mai potrivit pentru schimbari, dar nu este suficient singur: tot ai nevoie de CSRF token."
+  },
+  {
+    "id": "validation-001",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 2,
+    "priority": 4,
+    "title": "Validare server-side",
+    "source": "register.php:23",
+    "prompt": "De ce proiectul valideaza in PHP chiar daca inputurile HTML au required/minlength/type=email?",
+    "answer": "Validarea din browser este doar UX si poate fi ocolita. Serverul trebuie sa valideze mereu pentru securitate si integritate, deoarece requesturile pot veni din curl, Postman sau scripturi."
+  },
+  {
+    "id": "password-001",
+    "type": "multi_select",
+    "category": "auth",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Parole corecte",
+    "source": "register.php/login.php",
+    "prompt": "Ce este corect despre password_hash si password_verify?",
+    "options": [
+      "password_hash nu salveaza parola raw",
+      "bcrypt include salt",
+      "password_verify compara parola cu hash-ul",
+      "Hash-ul poate fi decriptat ca sa aflam parola",
+      "Parola ar trebui trimisa prin HTTPS in productie"
+    ],
+    "correct": [
+      0,
+      1,
+      2,
+      4
+    ],
+    "answer": "Parola se hash-uieste, nu se cripteaza reversibil. password_verify verifica inputul fata de hash. In productie formularul trebuie servit prin HTTPS."
+  },
+  {
+    "id": "json-input-001",
+    "type": "code",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "php://input",
+    "source": "status_update.php:27",
+    "prompt": "De ce status_update.php citeste php://input in loc de $_POST?",
+    "snippet": "$input = json_decode(file_get_contents('php://input'), true);",
+    "answer": "Requestul fetch trimite Content-Type application/json, nu formular clasic. PHP nu populeaza automat $_POST pentru JSON raw, deci citim body-ul brut din php://input si il decodam."
+  },
+  {
+    "id": "http-codes-001",
+    "type": "mcq",
+    "category": "architecture",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "Coduri HTTP",
+    "source": "status_update.php",
+    "prompt": "Ce inseamna 401, 405, 422 si 404 in endpointul JSON?",
+    "options": [
+      "401 neautentificat, 405 metoda gresita, 422 date invalide, 404 ticket lipsa/neautorizat",
+      "401 succes, 405 redirect, 422 creat, 404 validare",
+      "Toate inseamna eroare de baza de date",
+      "Sunt alese aleatoriu"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "Codurile comunica motivul esecului clientului JS. 404 este folosit generic ca sa nu dezvaluie daca ticketul exista dar apartine altui user."
+  },
+  {
+    "id": "theme-001",
+    "type": "short_answer",
+    "category": "htmlcss",
+    "difficulty": 2,
+    "priority": 2,
+    "title": "Theme init",
+    "source": "partials/theme-init.php",
+    "prompt": "De ce proiectul are un theme-init inline in head, inainte de CSS sau randare completa?",
+    "answer": "Pentru a seta rapid atributul data-theme din localStorage inainte ca pagina sa se vada, evitand flash-ul de light theme cand userul prefera dark theme."
+  },
+  {
+    "id": "css-vars-001",
+    "type": "mcq",
+    "category": "htmlcss",
+    "difficulty": 2,
+    "priority": 2,
+    "title": "CSS variables",
+    "source": "assets/style.css",
+    "prompt": "De ce sunt utile variabilele CSS pentru tema?",
+    "options": [
+      "Schimbi tokeni precum --color-bg intr-un loc si componentele se actualizeaza",
+      "Inlocuiesc complet JavaScript",
+      "Sunt obligatorii pentru MySQL",
+      "Sterg automat clasele nefolosite"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "Variabilele CSS centralizeaza culorile/spatierea si permit override pe tema dark fara duplicarea tuturor regulilor."
+  },
+  {
+    "id": "novalidate-001",
+    "type": "short_answer",
+    "category": "htmlcss",
+    "difficulty": 2,
+    "priority": 2,
+    "title": "novalidate",
+    "source": "login.php/register.php",
+    "prompt": "De ce formularele pot avea novalidate desi inputurile au required?",
+    "answer": "novalidate dezactiveaza validarea nativa a browserului pentru a avea mesaje si flow consistent din backend. Nu inseamna ca nu validam; validarea reala ramane in PHP."
+  },
+  {
+    "id": "lastinsertid-001",
+    "type": "mcq",
+    "category": "mysql",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "lastInsertId",
+    "source": "ticket_new.php:45",
+    "prompt": "Pentru ce este folosit $pdo->lastInsertId() in ticket_new.php?",
+    "options": [
+      "Ia ID-ul ticketului abia creat ca sa lege notitele de el",
+      "Ia ultimul user logat",
+      "Sterge ultimul ticket",
+      "Verifica parola"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "Dupa INSERT in tickets, baza genereaza id auto_increment. lastInsertId permite folosirea acelui id pentru INSERT in ticket_notes."
+  },
+  {
+    "id": "iife-001",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 2,
+    "priority": 2,
+    "title": "IIFE",
+    "source": "partials/theme-init.php",
+    "prompt": "Ce este o IIFE si de ce ar fi utila in scriptul de tema?",
+    "answer": "IIFE inseamna Immediately Invoked Function Expression: o functie rulata imediat. Izoleaza variabilele ca sa nu polueze scope-ul global si ruleaza codul de initializare instant."
+  },
+  {
+    "id": "fetch-error-001",
+    "type": "scenario",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "UI dupa eroare",
+    "source": "assets/app.js:39",
+    "prompt": "Status update esueaza server-side. Ce trebuie sa faca UI-ul si de ce?",
+    "answer": "Trebuie sa revina dropdownul la valoarea salvata si sa afiseze eroarea. Altfel interfata ar minti utilizatorul ca statusul s-a schimbat desi baza de date nu a fost actualizata."
+  },
+  {
+    "id": "json-decode-001",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "json_decode true",
+    "source": "ticket_new.php/status_update.php",
+    "prompt": "Ce efect are al doilea argument true in json_decode(..., true)?",
+    "answer": "Face ca JSON-ul sa fie decodat ca array asociativ PHP, nu ca obiect stdClass. Astfel poti accesa $input['id'] sau parcurge array-ul de notite."
+  },
+  {
+    "id": "filter-email-001",
+    "type": "mcq",
+    "category": "php",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "FILTER_VALIDATE_EMAIL",
+    "source": "register.php:28",
+    "prompt": "Ce rol are filter_var($email, FILTER_VALIDATE_EMAIL)?",
+    "options": [
+      "Verifica forma generala a emailului",
+      "Trimite email de confirmare",
+      "Protejeaza automat impotriva XSS",
+      "Creeaza hash pentru email"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "Valideaza formatul de email la nivel server-side. Nu trimite email, nu protejeaza outputul si nu inlocuieste alte validari."
+  },
+  {
+    "id": "enum-001",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "ENUM status",
+    "source": "schema.sql:25",
+    "prompt": "Ce avantaj si ce dezavantaj are status ENUM('Open','In Progress','On Hold','Closed')?",
+    "answer": "Avantaj: baza limiteaza valorile invalide. Dezavantaj: schimbarea listei de statusuri necesita modificare de schema si poate deveni mai rigida decat un tabel separat statuses."
+  },
+  {
+    "id": "index-perf-001",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Index user_id",
+    "source": "schema.sql:33",
+    "prompt": "De ce exista INDEX idx_tickets_user (user_id)?",
+    "answer": "Dashboardul cauta tichete dupa user_id. Indexul permite cautare eficienta fara full table scan, important cand tabela tickets creste."
+  },
+  {
+    "id": "cascade-001",
+    "type": "scenario",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "ON DELETE CASCADE",
+    "source": "schema.sql:29",
+    "prompt": "Explica ON DELETE CASCADE si trade-off-ul sau.",
+    "answer": "Daca stergi un user, tichetele lui dispar automat; daca stergi un ticket, notitele lui dispar automat. Este bun pentru integritate si curatenie, dar o stergere accidentala poate produce pierderi in lant."
+  },
+  {
+    "id": "partial-001",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 2,
+    "priority": 2,
+    "title": "De ce partials?",
+    "source": "partials/nav.php",
+    "prompt": "De ce proiectul extrage navigatia si butonul de tema in partials?",
+    "answer": "Reduce duplicarea si mentine consistenta UI. Daca se schimba navigatia sau butonul de tema, modifici un singur fisier inclus in paginile relevante."
+  },
+  {
+    "id": "procedural-001",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "Frameworkless PHP",
+    "source": "project",
+    "prompt": "Cum ai descrie arhitectura proiectului unui intervievator?",
+    "answer": "Este o aplicatie PHP procedurala fara framework: fiecare fisier PHP functioneaza ca ruta/pagina sau endpoint, helpers centralizeaza functii comune, db.php centralizeaza conexiunea PDO, iar partials refolosesc bucati de UI."
+  },
+  {
+    "id": "get-id-001",
+    "type": "scenario",
+    "category": "security",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "ID din URL",
+    "source": "ticket_view.php:10",
+    "prompt": "De ce cast-uim $_GET['id'] la int si tot folosim prepared statement?",
+    "answer": "Cast-ul normalizeaza valoarea si reduce input invalid, dar prepared statement ramane necesar ca regula generala de siguranta SQL. In plus, autorizarea reala vine din AND user_id = current_user_id()."
+  },
+  {
+    "id": "same-error-001",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Eroare vaga",
+    "source": "login.php/status_update.php",
+    "prompt": "De ce este bine ca loginul spune Invalid email or password si status_update spune generic Ticket not found?",
+    "answer": "Mesajele vagi evita information disclosure. Loginul nu confirma daca emailul exista, iar endpointul ticket nu confirma daca un ticket apartine altcuiva."
+  },
+  {
+    "id": "note-length-001",
+    "type": "mcq",
+    "category": "php",
+    "difficulty": 2,
+    "priority": 2,
+    "title": "Limitare notite",
+    "source": "ticket_new.php:24",
+    "prompt": "De ce se verifica strlen($note) <= 2000 pentru working notes?",
+    "options": [
+      "Pentru validare si limitarea abuzului/continutului prea mare",
+      "Pentru a porni sesiunea",
+      "Pentru a crea index SQL",
+      "Pentru a trimite email"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "Este o limita server-side care evita continut excesiv si mentine datele controlate. O limita similara ar trebui reflectata si in UI."
+  },
+  {
+    "id": "redirect-helper-001",
+    "type": "code",
+    "category": "php",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "redirect helper",
+    "source": "helpers.php:40",
+    "prompt": "Ce avantaj are functia redirect($path)?",
+    "snippet": "function redirect(string $path): void\n{\n    header('Location: ' . $path);\n    exit;\n}",
+    "answer": "Centralizeaza patternul corect header Location + exit. Reduce riscul ca intr-un fisier sa uiti exit dupa redirect."
+  },
+  {
+    "id": "seed-001",
+    "type": "short_answer",
+    "category": "project",
+    "difficulty": 1,
+    "priority": 2,
+    "title": "schema.sql vs seed.sql",
+    "source": "schema.sql/seed.sql",
+    "prompt": "Care este diferenta dintre schema.sql si seed.sql?",
+    "answer": "schema.sql creeaza baza, tabelele, constrangerile si indexurile. seed.sql introduce date demo pentru testare/dezvoltare."
+  },
+  {
+    "id": "config-001",
+    "type": "scenario",
+    "category": "project",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "Config local",
+    "source": "config.php",
+    "prompt": "De ce config.php cu root fara parola este acceptabil local, dar nu in productie?",
+    "answer": "Este convenient pentru XAMPP/local, dar in productie credentialele trebuie tinute in environment/secrets, cu user DB limitat, parola puternica si fara expunere in repository public."
+  },
+  {
+    "id": "github-pages-001",
+    "type": "mcq",
+    "category": "architecture",
+    "difficulty": 2,
+    "priority": 2,
+    "title": "GitHub Pages si PHP",
+    "source": "PWA",
+    "prompt": "De ce PWA-ul de invatare poate rula pe GitHub Pages, dar proiectul PHP HelpDesk nu ruleaza complet acolo?",
+    "options": [
+      "GitHub Pages serveste static HTML/CSS/JS, nu executa PHP si nu ofera MySQL",
+      "GitHub Pages ruleaza automat XAMPP",
+      "PHP merge doar daca fisierul se numeste index.html",
+      "MySQL este inclus gratuit in orice repo"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "PWA-ul este static si foloseste localStorage. HelpDesk are backend PHP si MySQL, deci necesita server PHP si baza de date."
+  },
+  {
+    "id": "pwa-001",
+    "type": "multi_select",
+    "category": "architecture",
+    "difficulty": 2,
+    "priority": 2,
+    "title": "Ce face PWA-ul instalabil?",
+    "source": "interview-pwa",
+    "prompt": "Ce componente ajuta aceasta aplicatie sa fie PWA?",
+    "options": [
+      "manifest.json",
+      "service-worker.js",
+      "cache pentru app shell si question bank",
+      "PDO",
+      "ON DELETE CASCADE"
+    ],
+    "correct": [
+      0,
+      1,
+      2
+    ],
+    "answer": "Manifestul descrie aplicatia, service worker-ul cache-uieste fisierele, iar app shell + date locale permit folosirea offline."
+  },
+  {
+    "id": "explain-flow-001",
+    "type": "scenario",
+    "category": "project",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Explica tot flow-ul",
+    "source": "project",
+    "prompt": "Intervievatorul cere: 'Explica-mi ce se intampla din momentul in care userul se logheaza pana cand creeaza un ticket cu notite.' Structureaza raspunsul.",
+    "parts": [
+      "Login si sesiune",
+      "Dashboard protejat",
+      "Formular ticket_new",
+      "Salvare ticket + lastInsertId",
+      "Salvare notes",
+      "Redirect"
+    ],
+    "answer": "Userul trimite email/parola, login.php cauta userul cu PDO si verifica password_hash. Dupa succes regenereaza sesiunea si salveaza user_id. Paginile protejate apeleaza require_login. In ticket_new, userul trimite title, description si working_notes ca JSON hidden. PHP valideaza, insereaza ticketul, ia ID-ul cu lastInsertId, insereaza notitele cu acel ticket_id si face redirect la index."
+  },
+  {
+    "id": "improve-001",
+    "type": "scenario",
+    "category": "architecture",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Cum ai imbunatati proiectul?",
+    "source": "project",
+    "prompt": "Daca ai avea o zi in plus, care sunt primele 5 imbunatatiri tehnice?",
+    "answer": "1) CSRF tokens pentru toate actiunile state-changing. 2) Fix rowCount in status_update. 3) Tranzactie pentru ticket + notes. 4) try/catch pentru duplicate email si erori DB. 5) Config prin environment variables si HTTPS in productie. Bonus: teste, routing mai curat si flash messages."
+  },
+  {
+    "id": "junior-honesty-001",
+    "type": "short_answer",
+    "category": "project",
+    "difficulty": 1,
+    "priority": 5,
+    "title": "Cum raspunzi cand nu stii?",
+    "source": "interview",
+    "prompt": "La interviu primesti o intrebare PHP necunoscuta. Care este un raspuns matur de junior?",
+    "answer": "As spune sincer ca nu sunt sigur, apoi as explica cum as verifica: documentatia PHP, un test mic local, logs/var_dump, si as lega de conceptele pe care le stiu. Important este sa arat rationament, nu sa inventez."
+  },
+  {
+    "id": "project-auth-001",
+    "type": "short_answer",
+    "category": "auth",
+    "difficulty": 2,
+    "priority": 5,
+    "title": "De ce start_session pe fiecare pagina",
+    "source": "helpers.php/all pages",
+    "prompt": "De ce aproape fiecare pagina apeleaza start_session inainte de current_user_id sau require_login?",
+    "answer": "Pentru ca PHP trebuie sa incarce sesiunea curenta inainte sa putem citi $_SESSION. Fara session_start, current_user_id nu poate sti userul logat."
+  },
+  {
+    "id": "project-auth-002",
+    "type": "short_answer",
+    "category": "auth",
+    "difficulty": 2,
+    "priority": 4,
+    "title": "Redirect daca esti deja logat",
+    "source": "login.php:8/register.php:9",
+    "prompt": "De ce login.php si register.php redirectioneaza catre index.php daca userul este deja logat?",
+    "answer": "Evita ca un user autentificat sa vada formulare inutile si previne stari confuze precum inregistrare noua in aceeasi sesiune."
+  },
+  {
+    "id": "project-auth-003",
+    "type": "short_answer",
+    "category": "auth",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "Mesaj login vag",
+    "source": "login.php:29",
+    "prompt": "De ce codul foloseste acelasi mesaj pentru email gresit si parola gresita?",
+    "answer": "Pentru a evita user enumeration. Daca mesajele ar fi diferite, atacatorul ar putea testa ce emailuri exista in baza de date."
+  },
+  {
+    "id": "project-auth-004",
+    "type": "short_answer",
+    "category": "auth",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "Ce intra in sesiune",
+    "source": "login.php:36",
+    "prompt": "De ce este suficient sa salvam user_id si user_name in $_SESSION, nu toata linia userului?",
+    "answer": "Sesiunea ar trebui sa contina minimul necesar. user_id identifica userul, iar restul datelor pot fi recitite daca este nevoie. Reduce expunerea si datele stale."
+  },
+  {
+    "id": "project-auth-005",
+    "type": "short_answer",
+    "category": "auth",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Cookie PHPSESSID",
+    "source": "logout.php",
+    "prompt": "Ce rol are cookie-ul PHPSESSID in acest proiect?",
+    "answer": "Cookie-ul leaga browserul de datele sesiunii de pe server. Fara el, requesturile nu ar putea fi asociate cu userul logat."
+  },
+  {
+    "id": "project-auth-006",
+    "type": "short_answer",
+    "category": "auth",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Logout incomplet",
+    "source": "logout.php",
+    "prompt": "Ce se intampla daca logout.php face doar session_destroy, dar nu expira cookie-ul?",
+    "answer": "Datele server-side pot fi distruse, dar browserul poate pastra vechiul ID. Un logout complet curata $_SESSION, distruge sesiunea si expira cookie-ul."
+  },
+  {
+    "id": "project-auth-007",
+    "type": "short_answer",
+    "category": "auth",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Login prin POST",
+    "source": "login.php:16",
+    "prompt": "De ce loginul proceseaza credentialele doar pe REQUEST_METHOD POST?",
+    "answer": "Credentialele nu trebuie trimise in URL. POST pastreaza datele in body si separa afisarea formularului GET de procesarea lui POST."
+  },
+  {
+    "id": "project-auth-008",
+    "type": "short_answer",
+    "category": "auth",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Parola nu se repopuleaza",
+    "source": "login.php/register.php",
+    "prompt": "De ce inputul password nu are value repopulat dupa eroare, spre deosebire de email?",
+    "answer": "Din motive de securitate si UX. Parolele nu trebuie reflectate inapoi in HTML sau pastrate in markup dupa un submit esuat."
+  },
+  {
+    "id": "project-auth-009",
+    "type": "short_answer",
+    "category": "auth",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Rate limiting lipsa",
+    "source": "login.php",
+    "prompt": "Ce imbunatatire importanta lipseste la login pentru productie?",
+    "answer": "Rate limiting sau lockout progresiv. Fara el, cineva poate incerca multe parole. Pentru junior este suficient sa mentioneze limita de incercari si logging."
+  },
+  {
+    "id": "project-auth-010",
+    "type": "short_answer",
+    "category": "auth",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "registered=1",
+    "source": "login.php:14",
+    "prompt": "Ce face parametrul registered=1 si ce risc ar avea daca ar controla continut sensibil?",
+    "answer": "Controleaza doar mesajul Account created. Este acceptabil pentru feedback simplu, dar parametrii GET nu trebuie folositi pentru decizii de securitate."
+  },
+  {
+    "id": "project-register-001",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "Validare nume",
+    "source": "register.php:24",
+    "prompt": "De ce se foloseste trim pe name si apoi se verifica string gol?",
+    "answer": "trim elimina spatii la inceput/sfarsit, astfel un nume format doar din spatii nu trece validarea."
+  },
+  {
+    "id": "project-register-002",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Minim parola",
+    "source": "register.php:32",
+    "prompt": "Este suficienta regula de minim 6 caractere pentru productie?",
+    "answer": "Nu. Este simpla pentru proiect junior, dar in productie ar trebui politici mai bune, eventual verificare parole compromise si rate limiting."
+  },
+  {
+    "id": "project-register-003",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Unique email dublat",
+    "source": "register.php/schema.sql",
+    "prompt": "De ce avem si SELECT pentru email existent si UNIQUE KEY in baza?",
+    "answer": "SELECT ofera mesaj prietenos, UNIQUE KEY garanteaza integritatea chiar si in race conditions sau daca alt cod incearca insert duplicat."
+  },
+  {
+    "id": "project-register-004",
+    "type": "short_answer",
+    "category": "debugging",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Exceptie duplicate email",
+    "source": "register.php:52",
+    "prompt": "Ce eroare poate aparea la insert daca doua requesturi folosesc acelasi email?",
+    "answer": "PDOException cu SQLSTATE 23000 pentru unique constraint. Trebuie prinsa si transformata in mesaj clar."
+  },
+  {
+    "id": "project-register-005",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Hash nu criptare",
+    "source": "register.php:47",
+    "prompt": "Cum explici diferenta dintre hashing si criptare pentru parola din proiect?",
+    "answer": "Hashing este one-way: verifici parola cu password_verify, dar nu recuperezi parola originala. Criptarea este reversibila cu cheie."
+  },
+  {
+    "id": "project-register-006",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "FILTER_VALIDATE_EMAIL",
+    "source": "register.php:28",
+    "prompt": "Ce garanteaza si ce nu garanteaza FILTER_VALIDATE_EMAIL?",
+    "answer": "Garanteaza doar format rezonabil de email. Nu garanteaza ca domeniul exista, ca userul detine emailul sau ca emailul poate primi mesaje."
+  },
+  {
+    "id": "project-register-007",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Email case sensitivity",
+    "source": "register.php",
+    "prompt": "Ce problema poate aparea daca User@Test.com si user@test.com sunt tratate diferit?",
+    "answer": "Pot aparea conturi duplicate logic. O imbunatatire este normalizarea emailului, de obicei lowercase, inainte de verificare si insert."
+  },
+  {
+    "id": "project-register-008",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "Errors array",
+    "source": "register.php:13",
+    "prompt": "De ce se aduna erorile intr-un array in loc sa se opreasca la prima?",
+    "answer": "Permite afisarea mai multor probleme dintr-o singura incercare, deci UX mai bun si cod mai clar."
+  },
+  {
+    "id": "project-register-009",
+    "type": "short_answer",
+    "category": "htmlcss",
+    "difficulty": 2,
+    "priority": 2,
+    "title": "novalidate register",
+    "source": "register.php:84",
+    "prompt": "De ce formularul poate avea novalidate daca tot are required si minlength?",
+    "answer": "Pentru control consistent al mesajelor server-side. Browser validation este doar ajutor, nu securitate."
+  },
+  {
+    "id": "project-register-010",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Credentiale in config",
+    "source": "config.php",
+    "prompt": "Care este riscul daca config.php cu credentiale DB ajunge public pe GitHub?",
+    "answer": "Oricine poate vedea host/user/parola. In productie credentialele trebuie in variabile de mediu sau secret manager, nu hardcodate in repo."
+  },
+  {
+    "id": "project-db-001",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "DSN cu charset",
+    "source": "db.php:11",
+    "prompt": "De ce DSN-ul include charset=utf8mb4?",
+    "answer": "Seteaza encodingul conexiunii si evita probleme cu caractere Unicode. utf8mb4 suporta complet Unicode, inclusiv emoji."
+  },
+  {
+    "id": "project-db-002",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "ERRMODE_EXCEPTION",
+    "source": "db.php:15",
+    "prompt": "De ce este mai bine PDO::ERRMODE_EXCEPTION decat erori silentioase?",
+    "answer": "Erorile devin exceptii vizibile si tratabile. Fara asta, query-urile pot esua fara sa observi rapid cauza."
+  },
+  {
+    "id": "project-db-003",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 2,
+    "priority": 4,
+    "title": "FETCH_ASSOC",
+    "source": "db.php:17",
+    "prompt": "Ce diferenta este intre FETCH_ASSOC si fetch numeric?",
+    "answer": "FETCH_ASSOC returneaza coloanele pe nume, ex. $user['password_hash'], ceea ce face codul mai lizibil decat indici numerici."
+  },
+  {
+    "id": "project-db-004",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Emulate prepares false",
+    "source": "db.php:19",
+    "prompt": "De ce e important PDO::ATTR_EMULATE_PREPARES false?",
+    "answer": "Foloseste prepared statements native MySQL, separand query-ul de date la nivel de server. Este preferabil pentru siguranta si tipuri corecte."
+  },
+  {
+    "id": "project-db-005",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "static in functie",
+    "source": "db.php:8",
+    "prompt": "De ce static $pdo nu este acelasi lucru cu o variabila globala?",
+    "answer": "Este vizibila doar in functie, dar isi pastreaza valoarea intre apeluri in acelasi request. Evita global state expus peste tot."
+  },
+  {
+    "id": "project-db-006",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Un singur PDO per request",
+    "source": "db.php",
+    "prompt": "De ce nu cream PDO nou pentru fiecare query?",
+    "answer": "Ar fi ineficient si ar complica tranzactiile. O conexiune reutilizata per request este suficienta pentru acest proiect."
+  },
+  {
+    "id": "project-db-007",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Exceptii in productie",
+    "source": "db.php",
+    "prompt": "Daca PDO arunca exceptie in productie, ce nu trebuie sa vada userul?",
+    "answer": "Nu trebuie sa vada DSN, query-uri, stack trace sau credentiale. Userul vede mesaj generic, detaliile merg in logs."
+  },
+  {
+    "id": "project-schema-001",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 2,
+    "priority": 5,
+    "title": "Trei tabele",
+    "source": "schema.sql",
+    "prompt": "Care sunt cele trei entitati principale ale proiectului si relatia dintre ele?",
+    "answer": "users are multe tickets; tickets are multe ticket_notes. Relatia este 1-la-multe in ambele cazuri."
+  },
+  {
+    "id": "project-schema-002",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "INT UNSIGNED",
+    "source": "schema.sql",
+    "prompt": "De ce id-urile sunt INT UNSIGNED?",
+    "answer": "ID-urile nu sunt negative, deci UNSIGNED mareste intervalul pozitiv disponibil si exprima intentia."
+  },
+  {
+    "id": "project-schema-003",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "VARCHAR vs TEXT",
+    "source": "schema.sql",
+    "prompt": "De ce title este VARCHAR(150), iar description este TEXT?",
+    "answer": "Titlul trebuie scurt si indexabil/limitat; descrierea poate fi lunga, deci TEXT este mai potrivit."
+  },
+  {
+    "id": "project-schema-004",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "updated_at automat",
+    "source": "schema.sql:27",
+    "prompt": "Ce face ON UPDATE CURRENT_TIMESTAMP?",
+    "answer": "Actualizeaza automat coloana updated_at cand randul se modifica, util pentru Last updated in ticket_view."
+  },
+  {
+    "id": "project-schema-005",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "Index status",
+    "source": "schema.sql:34",
+    "prompt": "La ce ar putea ajuta idx_tickets_status?",
+    "answer": "La filtrari/rapoarte dupa status, de exemplu toate tichetele Open. Pentru dashboardul per user, idx_tickets_user este mai important."
+  },
+  {
+    "id": "project-schema-006",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Index compus posibil",
+    "source": "schema.sql",
+    "prompt": "Ce index ai adauga daca filtrezi frecvent tickets dupa user_id si status impreuna?",
+    "answer": "Un index compus (user_id, status) poate ajuta query-uri cu WHERE user_id = ? AND status = ?. Ordinea conteaza in functie de query."
+  },
+  {
+    "id": "project-schema-007",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Cascade ticket notes",
+    "source": "schema.sql:43",
+    "prompt": "Ce se intampla cu notitele cand stergi un ticket?",
+    "answer": "FK ticket_notes.ticket_id cu ON DELETE CASCADE sterge automat notitele asociate ticketului."
+  },
+  {
+    "id": "project-schema-008",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "InnoDB",
+    "source": "schema.sql",
+    "prompt": "De ce engine-ul InnoDB este relevant aici?",
+    "answer": "InnoDB suporta tranzactii si foreign keys. Pentru relatii si integritate este alegerea potrivita."
+  },
+  {
+    "id": "project-schema-009",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "ENUM status in PHP si DB",
+    "source": "schema.sql/status_update.php",
+    "prompt": "De ce statusul este validat si in PHP si constrans in MySQL?",
+    "answer": "PHP ofera mesaj controlat si previne requesturi gresite devreme; DB garanteaza integritatea chiar daca un bug scapa de PHP."
+  },
+  {
+    "id": "project-schema-010",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "created_at default",
+    "source": "schema.sql",
+    "prompt": "De ce created_at are DEFAULT CURRENT_TIMESTAMP?",
+    "answer": "Baza seteaza automat momentul crearii, chiar daca PHP nu trimite explicit timestampul."
+  },
+  {
+    "id": "project-index-001",
+    "type": "short_answer",
+    "category": "crud",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "Dashboard ownership",
+    "source": "index.php",
+    "prompt": "Ce trebuie sa verifici in query-ul de dashboard ca sa nu vezi tichetele altui user?",
+    "answer": "WHERE user_id = current_user_id(). Fara aceasta conditie, dashboardul ar putea lista datele tuturor userilor."
+  },
+  {
+    "id": "project-index-002",
+    "type": "short_answer",
+    "category": "crud",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "Actiuni rapide",
+    "source": "index.php",
+    "prompt": "Ce actiuni principale ofera dashboardul pe fiecare ticket?",
+    "answer": "Vizualizare, editare, stergere si schimbare status prin dropdown, in functie de implementarea exacta a randului."
+  },
+  {
+    "id": "project-index-003",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Mai multe dropdownuri",
+    "source": "assets/app.js:8",
+    "prompt": "Cum leaga app.js toate dropdownurile de status fara id-uri unice?",
+    "answer": "Foloseste document.querySelectorAll('.status-select') si adauga listener pentru fiecare element gasit."
+  },
+  {
+    "id": "project-index-004",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Feedback langa select",
+    "source": "assets/app.js:15",
+    "prompt": "De ce foloseste select.nextElementSibling pentru mesajul Saved/Error?",
+    "answer": "Markup-ul pune span-ul de feedback imediat dupa select, deci JS poate gasi local elementul fara id global."
+  },
+  {
+    "id": "project-index-005",
+    "type": "short_answer",
+    "category": "debugging",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Feedback nu dispare",
+    "source": "assets/app.js:49",
+    "prompt": "Ce face setTimeout in feedbackul de status?",
+    "answer": "Sterge mesajul dupa 2 secunde, ca un toast simplu. Daca lipseste, UI ramane aglomerat cu mesaje vechi."
+  },
+  {
+    "id": "project-index-006",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Catch network error",
+    "source": "assets/app.js:53",
+    "prompt": "Ce caz prinde .catch in fetch?",
+    "answer": "Erori de retea sau imposibilitatea de a parsa/obtine raspunsul. Erorile HTTP 404/422 nu intra automat in catch, de aceea codul verifica response.ok."
+  },
+  {
+    "id": "project-index-007",
+    "type": "short_answer",
+    "category": "debugging",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "JSON invalid",
+    "source": "assets/app.js:25",
+    "prompt": "Ce se intampla daca status_update.php returneaza HTML in loc de JSON?",
+    "answer": "response.json() esueaza si flow-ul ajunge in catch sau produce eroare. Endpointurile AJAX trebuie sa returneze JSON consistent."
+  },
+  {
+    "id": "project-index-008",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Nu te baza pe UI",
+    "source": "status_update.php",
+    "prompt": "De ce status_update.php valideaza statusul daca dropdownul are deja doar valori permise?",
+    "answer": "Clientul poate fi modificat din DevTools sau requestul poate veni din Postman/curl. Serverul nu are voie sa aiba incredere in UI."
+  },
+  {
+    "id": "project-ticket-new-001",
+    "type": "short_answer",
+    "category": "crud",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "GET vs POST new ticket",
+    "source": "ticket_new.php:14",
+    "prompt": "Ce face ticket_new.php diferit pe GET fata de POST?",
+    "answer": "Pe GET afiseaza formularul gol. Pe POST citeste datele, valideaza, insereaza ticketul si redirectioneaza."
+  },
+  {
+    "id": "project-ticket-new-002",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "working_notes JSON",
+    "source": "ticket_new.php:20",
+    "prompt": "De ce codul verifica is_array dupa json_decode pentru working_notes?",
+    "answer": "Pentru ca JSON invalid sau alt tip de valoare nu trebuie parcurs ca array. Este validare defensiva."
+  },
+  {
+    "id": "project-ticket-new-003",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Limita note 2000",
+    "source": "ticket_new.php:24",
+    "prompt": "Ce tip de protectie ofera limita de 2000 caractere pentru note?",
+    "answer": "Limiteaza abuzul si dimensiunea payloadului. Este validare server-side de lungime."
+  },
+  {
+    "id": "project-ticket-new-004",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Lipsa tranzactie ticket notes",
+    "source": "ticket_new.php:38",
+    "prompt": "Ce problema apare daca insertul ticketului reuseste, dar al treilea insert de nota esueaza?",
+    "answer": "Baza ramane partiala: ticket creat cu doar o parte din notite. O tranzactie ar permite rollback complet."
+  },
+  {
+    "id": "project-ticket-new-005",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "lastInsertId corect",
+    "source": "ticket_new.php:45",
+    "prompt": "De ce lastInsertId trebuie apelat dupa insertul ticketului si inainte de insertul notitelor?",
+    "answer": "Pentru ca ai nevoie de cheia primara generata pentru ticketul tocmai creat ca foreign key in ticket_notes."
+  },
+  {
+    "id": "project-ticket-new-006",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "JSON hidden input manipulabil",
+    "source": "ticket_new.php:89",
+    "prompt": "De ce working_notes din hidden input trebuie revalidat pe server?",
+    "answer": "Hidden input nu este sigur; userul il poate modifica. Serverul trebuie sa decodeze, filtreze goluri si limiteze lungimea."
+  },
+  {
+    "id": "project-ticket-new-007",
+    "type": "short_answer",
+    "category": "htmlcss",
+    "difficulty": 2,
+    "priority": 2,
+    "title": "required pe title",
+    "source": "ticket_new.php:84",
+    "prompt": "Ce rol are required pe input daca serverul oricum valideaza?",
+    "answer": "Ajuta userul imediat in browser, dar nu este securitate. Serverul ramane sursa reala de validare."
+  },
+  {
+    "id": "project-ticket-new-008",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "notes-staged state",
+    "source": "assets/notes-staged.js",
+    "prompt": "De ce notitele de pe New Ticket sunt stocate initial in memorie, nu in DB?",
+    "answer": "Ticketul nu are inca ID, deci nu exista foreign key pentru note. Ele sunt trimise impreuna cu formularul final."
+  },
+  {
+    "id": "project-ticket-view-001",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "IDOR prevenit",
+    "source": "ticket_view.php:12",
+    "prompt": "Ce vulnerabilitate ar aparea daca query-ul ar fi SELECT * FROM tickets WHERE id = ? fara user_id?",
+    "answer": "IDOR: un user ar putea modifica id-ul din URL si vedea ticketul altui user."
+  },
+  {
+    "id": "project-ticket-view-002",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "404 simplu",
+    "source": "ticket_view.php:16",
+    "prompt": "De ce este bine sa raspunzi Ticket not found si pentru ticket lipsa si pentru ticket al altui user?",
+    "answer": "Nu dezvalui existenta resurselor altui user. Este o forma simpla de reducere information disclosure."
+  },
+  {
+    "id": "project-ticket-view-003",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Order notes ASC",
+    "source": "ticket_view.php:22",
+    "prompt": "De ce notitele sunt ordonate ASC dupa created_at?",
+    "answer": "Pentru a arata istoricul troubleshooting in ordine cronologica, de la prima nota la ultima."
+  },
+  {
+    "id": "project-ticket-view-004",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "nl2br descriere",
+    "source": "ticket_view.php:64",
+    "prompt": "De ce descrierea foloseste nl2br?",
+    "answer": "Pastreaza randurile noi introduse de user cand textul este afisat in HTML. Se combina cu h() pentru siguranta."
+  },
+  {
+    "id": "project-ticket-view-005",
+    "type": "short_answer",
+    "category": "htmlcss",
+    "difficulty": 2,
+    "priority": 2,
+    "title": "aria hidden saved",
+    "source": "ticket_view.php:58",
+    "prompt": "De ce spanul status-saved poate avea aria-hidden?",
+    "answer": "Mesajul este feedback vizual temporar; pentru accesibilitate completa ar fi mai bine aria-live, dar aria-hidden il ascunde de screen readers."
+  },
+  {
+    "id": "project-ticket-view-006",
+    "type": "short_answer",
+    "category": "crud",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Form delete inline",
+    "source": "ticket_view.php:68",
+    "prompt": "De ce delete este formular POST si nu link simplu?",
+    "answer": "Stergerea modifica stare si nu trebuie declansata de navigare GET. Totusi, mai trebuie CSRF token."
+  },
+  {
+    "id": "project-ticket-view-007",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "Escape in title",
+    "source": "ticket_view.php:31",
+    "prompt": "De ce titlul ticketului este trecut prin h() chiar si in tagul title?",
+    "answer": "Titlul vine de la user si poate contine caractere HTML. h() previne injectarea de markup/script in head sau body."
+  },
+  {
+    "id": "project-ticket-view-008",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Doua scripturi pe view",
+    "source": "ticket_view.php:100",
+    "prompt": "De ce ticket_view include si app.js si notes.js?",
+    "answer": "app.js gestioneaza schimbarea statusului, notes.js gestioneaza adaugarea AJAX de working notes. Sunt responsabilitati separate."
+  },
+  {
+    "id": "project-note-001",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "Prevent default notes",
+    "source": "assets/notes.js:13",
+    "prompt": "De ce notes.js apeleaza e.preventDefault la submit?",
+    "answer": "Opreste submitul clasic/reloadul paginii, pentru ca nota sa fie trimisa prin fetch si adaugata dinamic."
+  },
+  {
+    "id": "project-note-002",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Trim note JS",
+    "source": "assets/notes.js:15",
+    "prompt": "De ce JS face trim si ignora nota goala?",
+    "answer": "Evita requesturi inutile si ofera feedback rapid. Serverul trebuie totusi sa valideze din nou."
+  },
+  {
+    "id": "project-note-003",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Ownership la note add",
+    "source": "ticket_note_add.php",
+    "prompt": "Ce trebuie sa verifice ticket_note_add.php inainte de a insera nota?",
+    "answer": "Ca userul este logat si ca ticket_id apartine userului curent. Altfel cineva poate adauga note pe ticketul altcuiva."
+  },
+  {
+    "id": "project-note-004",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Remove empty",
+    "source": "assets/notes.js:37",
+    "prompt": "De ce se elimina elementul notes-empty dupa prima nota salvata?",
+    "answer": "Pentru ca lista nu mai este goala. Este actualizare UI dupa succesul serverului."
+  },
+  {
+    "id": "project-note-005",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "scrollTop notes",
+    "source": "assets/notes.js:58",
+    "prompt": "De ce seteaza list.scrollTop = list.scrollHeight?",
+    "answer": "Deruleaza lista la ultima nota adaugata, astfel userul vede imediat rezultatul actiunii."
+  },
+  {
+    "id": "project-note-006",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 5,
+    "priority": 5,
+    "title": "Stored XSS notes",
+    "source": "ticket_view.php/assets/notes.js",
+    "prompt": "Unde ar putea aparea stored XSS la notite si cum este prevenit?",
+    "answer": "Notita se salveaza in DB si se reafiseaza ulterior. PHP foloseste h(), iar JS foloseste textContent, deci markupul userului nu se executa."
+  },
+  {
+    "id": "project-note-007",
+    "type": "short_answer",
+    "category": "debugging",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Nota salvata dar nu apare",
+    "source": "assets/notes.js/ticket_note_add.php",
+    "prompt": "Daca nota se salveaza in DB dar nu apare in UI, unde verifici?",
+    "answer": "Network response JSON, selectorii notes-list/note-input, erori JS in console si structura raspunsului result.data.note."
+  },
+  {
+    "id": "project-note-008",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Timestamp DB readback",
+    "source": "ticket_note_add.php",
+    "prompt": "De ce endpointul poate reciti nota dupa insert pentru timestamp?",
+    "answer": "Timestampul real este generat de DB. Recitirea asigura ca frontendul afiseaza created_at exact, nu o estimare din browser."
+  },
+  {
+    "id": "project-edit-001",
+    "type": "short_answer",
+    "category": "crud",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Edit flow",
+    "source": "ticket_edit.php",
+    "prompt": "Care este flow-ul general pentru editarea unui ticket?",
+    "answer": "GET incarca ticketul userului si formularul, POST valideaza datele si face UPDATE cu id si user_id, apoi redirect."
+  },
+  {
+    "id": "project-edit-002",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Edit ownership",
+    "source": "ticket_edit.php",
+    "prompt": "De ce UPDATE-ul de edit trebuie sa includa id si user_id?",
+    "answer": "Ca userul sa nu poata edita ticketul altcuiva doar modificand id-ul din URL sau formular."
+  },
+  {
+    "id": "project-edit-003",
+    "type": "short_answer",
+    "category": "debugging",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Edit 404",
+    "source": "ticket_edit.php",
+    "prompt": "Daca editarea returneaza Ticket not found pentru un id valid, ce verifici?",
+    "answer": "Userul logat, query-ul cu user_id, existenta ticketului, parametrul id din URL si daca sesiunea este activa."
+  },
+  {
+    "id": "project-delete-001",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Delete cu CSRF",
+    "source": "ticket_delete.php",
+    "prompt": "De ce confirm('Delete this ticket?') nu este protectie CSRF?",
+    "answer": "Confirm este doar UI in pagina legitima. Un atac CSRF vine din alta pagina si poate trimite POST direct, fara acel confirm."
+  },
+  {
+    "id": "project-delete-002",
+    "type": "short_answer",
+    "category": "crud",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Delete idempotent",
+    "source": "ticket_delete.php",
+    "prompt": "Cum ai trata stergerea unui ticket deja sters?",
+    "answer": "Pentru UX poti redirectiona generic la index fara a dezvalui detalii. Pentru debugging poti loga rowCount, dar nu arati informatii sensibile."
+  },
+  {
+    "id": "project-delete-003",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Cascade dupa delete",
+    "source": "ticket_delete.php/schema.sql",
+    "prompt": "De ce ticket_delete.php nu sterge manual notitele?",
+    "answer": "Schema are ON DELETE CASCADE pe ticket_notes, deci DB sterge automat notitele dependente."
+  },
+  {
+    "id": "project-status-001",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "JSON endpoint auth",
+    "source": "status_update.php:18",
+    "prompt": "De ce status_update.php nu foloseste require_login cu redirect?",
+    "answer": "Este endpoint fetch care trebuie sa raspunda JSON. Un redirect HTML ar incurca frontendul; de aceea intoarce 401 JSON."
+  },
+  {
+    "id": "project-status-002",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "json_error helper local",
+    "source": "status_update.php:11",
+    "prompt": "De ce json_error seteaza http_response_code si apoi exit?",
+    "answer": "Seteaza codul corect pentru client, intoarce payload JSON standard si opreste executia ca sa nu continue cu update-ul."
+  },
+  {
+    "id": "project-status-003",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "php input absent",
+    "source": "status_update.php:27",
+    "prompt": "Ce se intampla daca body-ul JSON lipseste?",
+    "answer": "json_decode poate intoarce null, iar codul foloseste valori default: id 0 si status ''. Statusul invalid va produce 422."
+  },
+  {
+    "id": "project-status-004",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Status tampering",
+    "source": "status_update.php:31",
+    "prompt": "Daca userul trimite status='Admin', unde este blocat?",
+    "answer": "In allowlist-ul PHP cu in_array strict si suplimentar de ENUM-ul MySQL daca ar ajunge la baza."
+  },
+  {
+    "id": "project-status-005",
+    "type": "short_answer",
+    "category": "debugging",
+    "difficulty": 5,
+    "priority": 5,
+    "title": "Fix rowCount concret",
+    "source": "status_update.php:43",
+    "prompt": "Scrie verbal un fix pentru bug-ul rowCount la acelasi status.",
+    "answer": "Fac SELECT id FROM tickets WHERE id=? AND user_id=?; daca nu exista, 404. Daca exista, fac UPDATE si returnez ok indiferent daca rowCount este 0 pentru aceeasi valoare."
+  },
+  {
+    "id": "project-status-006",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "response.ok",
+    "source": "assets/app.js:24",
+    "prompt": "De ce codul pastreaza atat response.ok cat si data?",
+    "answer": "response.ok spune daca statusul HTTP este 2xx, iar data contine payloadul JSON al aplicatiei. Avem nevoie de ambele pentru feedback corect."
+  },
+  {
+    "id": "project-status-007",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "previousClass",
+    "source": "assets/app.js:12",
+    "prompt": "De ce app.js calculeaza previousClass din data-current-status?",
+    "answer": "Ca sa poata elimina clasa CSS veche inainte sa adauge clasa pentru noul status. Altfel pill-ul poate avea clase conflictuale."
+  },
+  {
+    "id": "project-status-008",
+    "type": "short_answer",
+    "category": "debugging",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Clasa status gresita",
+    "source": "helpers.php/statusToClass",
+    "prompt": "Ce trebuie sa fie consistent intre PHP status_class si JS statusToClass?",
+    "answer": "Ambele trebuie sa transforme acelasi status in aceeasi clasa CSS, ex. In Progress -> status-in-progress."
+  },
+  {
+    "id": "project-ui-001",
+    "type": "short_answer",
+    "category": "htmlcss",
+    "difficulty": 2,
+    "priority": 2,
+    "title": "Theme toggle localStorage",
+    "source": "assets/theme-toggle.js",
+    "prompt": "De ce tema este salvata in localStorage?",
+    "answer": "Pentru persistenta preferintei in browser intre incarcari, fara backend."
+  },
+  {
+    "id": "project-ui-002",
+    "type": "short_answer",
+    "category": "htmlcss",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "FOUC tema",
+    "source": "partials/theme-init.php",
+    "prompt": "Ce problema rezolva theme-init.php?",
+    "answer": "Evita flash of incorrect theme: seteaza tema devreme, in head, inainte ca pagina sa fie complet randata."
+  },
+  {
+    "id": "project-ui-003",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "Partial nav",
+    "source": "partials/nav.php",
+    "prompt": "Ce avantaj are un nav partial inclus in mai multe pagini?",
+    "answer": "Reutilizare si consistenta. Schimbi navigatia intr-un singur loc."
+  },
+  {
+    "id": "project-ui-004",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Numele userului in nav",
+    "source": "partials/nav.php",
+    "prompt": "Daca nav afiseaza user_name din sesiune, ce regula de output trebuie respectata?",
+    "answer": "Trebuie escapata cu h(), deoarece chiar si numele userului este input controlat de utilizator."
+  },
+  {
+    "id": "project-ui-005",
+    "type": "short_answer",
+    "category": "htmlcss",
+    "difficulty": 2,
+    "priority": 2,
+    "title": "CSS tokens",
+    "source": "assets/style.css",
+    "prompt": "Ce sunt CSS custom properties in proiect?",
+    "answer": "Variabile CSS pentru culori/spatiere/umbre, folosite ca design tokens si usor de schimbat pentru dark mode."
+  },
+  {
+    "id": "project-ui-006",
+    "type": "short_answer",
+    "category": "htmlcss",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "Responsive layout",
+    "source": "assets/style.css",
+    "prompt": "Ce ai verifica pentru interviu la partea responsive?",
+    "answer": "Formularele, dashboardul, panoul de notes si nav-ul pe mobil; sa nu apara overflow si actiunile sa ramana accesibile."
+  },
+  {
+    "id": "project-security-001",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 5,
+    "priority": 5,
+    "title": "Top 5 riscuri proiect",
+    "source": "project",
+    "prompt": "Enumera cele mai importante 5 riscuri ramase in proiect.",
+    "answer": "Lipsa CSRF, bug rowCount la status, lipsa tranzactii pentru ticket+notes, tratare incompleta exceptii DB, credentiale hardcodate/config local si lipsa rate limiting la login."
+  },
+  {
+    "id": "project-security-002",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "CSRF token design",
+    "source": "project",
+    "prompt": "Cum ai implementa CSRF pentru formularele clasice?",
+    "answer": "Generez token random in sesiune, il pun in hidden input, verific hash_equals la POST, rotesc tokenul optional si resping requestul invalid cu 403."
+  },
+  {
+    "id": "project-security-003",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 5,
+    "priority": 5,
+    "title": "CSRF JSON design",
+    "source": "status_update.php/ticket_note_add.php",
+    "prompt": "Cum ai implementa CSRF pentru endpointurile fetch JSON?",
+    "answer": "Pun tokenul in pagina ca meta/atribut data, JS il trimite in header X-CSRF-Token, PHP il compara cu tokenul din sesiune inainte de update/insert."
+  },
+  {
+    "id": "project-security-004",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "SQL injection aparare dubla",
+    "source": "project",
+    "prompt": "Care sunt cele doua reguli anti SQL injection vizibile in proiect?",
+    "answer": "Prepared statements pentru valori si validare/allowlist pentru campuri controlate precum status. Nu concatenam input in SQL."
+  },
+  {
+    "id": "project-security-005",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "XSS aparare dubla",
+    "source": "project",
+    "prompt": "Care sunt apararile XSS pe server si client?",
+    "answer": "Server: h()/htmlspecialchars la output. Client: textContent cand creeaza DOM. Evitam innerHTML cu date user."
+  },
+  {
+    "id": "project-security-006",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 5,
+    "priority": 5,
+    "title": "Auth vs authorization",
+    "source": "project",
+    "prompt": "Da un exemplu din proiect pentru autentificare si unul pentru autorizare.",
+    "answer": "Autentificare: login.php verifica parola si seteaza sesiunea. Autorizare: query-urile includ user_id ca sa permita acces doar la propriile tichete."
+  },
+  {
+    "id": "project-security-007",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Information disclosure",
+    "source": "project",
+    "prompt": "Unde evita proiectul information disclosure?",
+    "answer": "Loginul are mesaj vag, iar ticket endpoints pot spune Ticket not found fara sa confirme daca resursa apartine altcuiva."
+  },
+  {
+    "id": "project-security-008",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Input vs output escaping",
+    "source": "project",
+    "prompt": "De ce nu este suficient sa cureti inputul la salvare?",
+    "answer": "Contextul de output difera: HTML body, atribut, JSON, SQL. Regula buna este validare la input si escaping la output in contextul potrivit."
+  },
+  {
+    "id": "project-debug-001",
+    "type": "short_answer",
+    "category": "debugging",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Pagina alba",
+    "source": "project",
+    "prompt": "Ai pagina alba dupa modificare. Ce verifici in acest proiect?",
+    "answer": "Logurile PHP/Apache, error_reporting local, include paths, conexiunea DB, sintaxa PHP, Network tab si ultima modificare facuta."
+  },
+  {
+    "id": "project-debug-002",
+    "type": "short_answer",
+    "category": "debugging",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Login nu tine",
+    "source": "login.php/helpers.php",
+    "prompt": "Userul se logheaza dar revine la login. Ce verifici?",
+    "answer": "session_start, cookie PHPSESSID, session_regenerate_id, setarea $_SESSION['user_id'], redirectul, domeniul/path cookie si erorile inainte de header."
+  },
+  {
+    "id": "project-debug-003",
+    "type": "short_answer",
+    "category": "debugging",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "DB connection failed",
+    "source": "db.php/config.php",
+    "prompt": "Ce verifici daca get_db esueaza?",
+    "answer": "MySQL pornit, DB_NAME corect, user/parola, host 127.0.0.1, schema importata si extensia PDO MySQL activa."
+  },
+  {
+    "id": "project-debug-004",
+    "type": "short_answer",
+    "category": "debugging",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "404 ticket propriu",
+    "source": "ticket_view.php",
+    "prompt": "Un ticket propriu da 404. Ce intrebari pui?",
+    "answer": "Este userul corect logat? id-ul din URL este numeric? Ticketul are user_id corect? A fost sters? Query-ul foloseste DB corecta?"
+  },
+  {
+    "id": "project-debug-005",
+    "type": "short_answer",
+    "category": "debugging",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "AJAX 401",
+    "source": "status_update.php",
+    "prompt": "Status update intoarce 401. Care e cauza probabila?",
+    "answer": "Requestul nu are sesiune valida: user nelogat, cookie netrimis, alta origine/path sau sesiune expirata."
+  },
+  {
+    "id": "project-debug-006",
+    "type": "short_answer",
+    "category": "debugging",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "AJAX 422",
+    "source": "status_update.php",
+    "prompt": "Status update intoarce 422. Ce inseamna in proiect?",
+    "answer": "Statusul trimis nu este in lista permisa. Verific valoarea dropdownului si payloadul JSON."
+  },
+  {
+    "id": "project-debug-007",
+    "type": "short_answer",
+    "category": "debugging",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "AJAX 405",
+    "source": "status_update.php",
+    "prompt": "Status update intoarce 405. Ce inseamna?",
+    "answer": "Endpointul a fost apelat cu metoda gresita, nu POST. Verific fetch method sau testul manual."
+  },
+  {
+    "id": "project-debug-008",
+    "type": "short_answer",
+    "category": "debugging",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Note network error",
+    "source": "assets/notes.js",
+    "prompt": "Daca apare Network error la note, ce verifici?",
+    "answer": "URL endpoint, server pornit, raspuns PHP fatal/HTML, CORS/origin, consola JS, Network tab si JSON valid."
+  },
+  {
+    "id": "project-interview-001",
+    "type": "short_answer",
+    "category": "project",
+    "difficulty": 5,
+    "priority": 5,
+    "title": "Turul proiectului in 2 minute",
+    "source": "project",
+    "prompt": "Cum prezinti proiectul rapid la inceputul interviului?",
+    "answer": "Este o aplicatie HelpDesk Mini in PHP procedural cu autentificare, sesiuni, CRUD tickets, notes, AJAX status/notes, MySQL cu PDO si relatii users-tickets-notes. Are masuri de baza SQL injection/XSS si cateva imbunatatiri posibile: CSRF, tranzactii, erori."
+  },
+  {
+    "id": "project-interview-002",
+    "type": "short_answer",
+    "category": "project",
+    "difficulty": 5,
+    "priority": 5,
+    "title": "Fisierul cel mai important",
+    "source": "project",
+    "prompt": "Daca te intreaba care fisier arata cel mai bine backendul, ce alegi si de ce?",
+    "answer": "ticket_new.php sau status_update.php. ticket_new arata validare, insert principal, lastInsertId si relatii; status_update arata endpoint JSON, auth, validare si bug interesant rowCount."
+  },
+  {
+    "id": "project-interview-003",
+    "type": "short_answer",
+    "category": "project",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Ce ai scris tu aici?",
+    "source": "project",
+    "prompt": "Cum raspunzi daca esti intrebata ce parte ti s-a parut cea mai grea?",
+    "answer": "As mentiona legarea dintre PHP, MySQL si JavaScript: sesiuni pentru user, prepared statements pentru DB si fetch pentru update fara refresh. Apoi explic concret status update sau notes."
+  },
+  {
+    "id": "project-interview-004",
+    "type": "short_answer",
+    "category": "project",
+    "difficulty": 5,
+    "priority": 5,
+    "title": "Nu stii o functie",
+    "source": "project",
+    "prompt": "Daca uiti exact ce face o functie PHP in cod, cum raspunzi matur?",
+    "answer": "Spun ce cred din context, recunosc limita si explic cum verific: documentatie PHP, test mic local si debug controlat. Nu inventez siguranta falsa."
+  },
+  {
+    "id": "project-interview-005",
+    "type": "short_answer",
+    "category": "project",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "De ce junior-ready",
+    "source": "project",
+    "prompt": "De ce proiectul este potrivit pentru evaluare junior?",
+    "answer": "Acopera fundamente full-stack fara framework: formulare, sesiuni, CRUD, SQL relational, securitate de baza, AJAX si organizare simpla pe fisiere."
+  },
+  {
+    "id": "project-mcq-001",
+    "type": "mcq",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Cea mai grava lipsa",
+    "source": "project",
+    "prompt": "Care lipsa este cea mai importanta pentru actiuni POST in proiect?",
+    "options": [
+      "CSRF tokens",
+      "CSS variables",
+      "lastInsertId",
+      "novalidate"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "CSRF tokens, pentru ca actiunile care modifica date pot fi declansate de un site extern in browserul unui user logat."
+  },
+  {
+    "id": "project-mcq-002",
+    "type": "mcq",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Relatia notes",
+    "source": "schema.sql",
+    "prompt": "Ce coloana leaga ticket_notes de tickets?",
+    "options": [
+      "ticket_id",
+      "user_id",
+      "status",
+      "password_hash"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "ticket_notes.ticket_id este foreign key catre tickets.id."
+  },
+  {
+    "id": "project-mcq-003",
+    "type": "mcq",
+    "category": "auth",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "User curent",
+    "source": "helpers.php",
+    "prompt": "Ce intoarce current_user_id cand nimeni nu este logat?",
+    "options": [
+      "null",
+      "0 mereu",
+      "false si redirect",
+      "un array user"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "Functia intoarce $_SESSION['user_id'] sau null."
+  },
+  {
+    "id": "project-mcq-004",
+    "type": "mcq",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Payload status",
+    "source": "assets/app.js",
+    "prompt": "Ce trimite app.js catre status_update.php?",
+    "options": [
+      "JSON cu id si status",
+      "FormData cu parola",
+      "HTML complet",
+      "Doar query string"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "Trimite body JSON: { id: ticketId, status: newStatus }."
+  },
+  {
+    "id": "project-mcq-005",
+    "type": "mcq",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Request method",
+    "source": "ticket_new.php",
+    "prompt": "Ce conditie separa afisarea formularului de procesarea lui?",
+    "options": [
+      "$_SERVER['REQUEST_METHOD'] === 'POST'",
+      "isset($pdo)",
+      "session_status() === PHP_SESSION_NONE",
+      "h($title)"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "Metoda HTTP decide daca doar afisam pagina sau procesam submitul."
+  },
+  {
+    "id": "project-mcq-006",
+    "type": "mcq",
+    "category": "security",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "XSS output",
+    "source": "ticket_view.php",
+    "prompt": "Ce functie trebuie folosita cand afisezi title/description/note?",
+    "options": [
+      "h()",
+      "password_hash()",
+      "json_decode()",
+      "lastInsertId()"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "h() escape-uieste outputul HTML."
+  },
+  {
+    "id": "project-mcq-007",
+    "type": "mcq",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Stergere cascade",
+    "source": "schema.sql",
+    "prompt": "Ce se sterge automat cand stergi un ticket?",
+    "options": [
+      "Notitele lui",
+      "Userul lui",
+      "Toate tichetele",
+      "Tabela users"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "ticket_notes are FK cu ON DELETE CASCADE catre tickets."
+  },
+  {
+    "id": "project-mcq-008",
+    "type": "mcq",
+    "category": "debugging",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Status acelasi",
+    "source": "status_update.php",
+    "prompt": "Ce produce falsul Ticket not found la status identic?",
+    "options": [
+      "rowCount poate fi 0 la UPDATE fara schimbare",
+      "password_verify esueaza",
+      "CSS class lipseste",
+      "created_at se actualizeaza"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "rowCount nu este test sigur pentru existenta randului in acest caz."
+  },
+  {
+    "id": "project-mcq-009",
+    "type": "mcq",
+    "category": "architecture",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "Raspuns AJAX",
+    "source": "status_update.php",
+    "prompt": "De ce endpointul seteaza Content-Type application/json?",
+    "options": [
+      "Clientul fetch asteapta JSON",
+      "Ca sa incarce CSS",
+      "Ca sa porneasca MySQL",
+      "Ca sa dezactiveze sesiunea"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "Frontendul parseaza raspunsul cu response.json()."
+  },
+  {
+    "id": "project-mcq-010",
+    "type": "mcq",
+    "category": "project",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "Unde este schema",
+    "source": "project",
+    "prompt": "Ce fisier creeaza baza de date si tabelele?",
+    "options": [
+      "schema.sql",
+      "seed.sql",
+      "app.js",
+      "nav.php"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "schema.sql defineste baza, tabelele, FK-urile si indexurile."
+  },
+  {
+    "id": "project-scenario-001",
+    "type": "scenario",
+    "category": "project",
+    "difficulty": 5,
+    "priority": 5,
+    "title": "Explica login complet",
+    "source": "login.php",
+    "prompt": "Intervievatorul cere sa explici login.php linie cu linie la nivel logic.",
+    "parts": [
+      "Include helpers/db",
+      "Porneste sesiune",
+      "Daca user logat redirect",
+      "Valideaza POST",
+      "Cauta user",
+      "password_verify",
+      "regenerate session",
+      "seteaza sesiunea"
+    ],
+    "answer": "Login.php pregateste dependintele si sesiunea, nu lasa userul logat sa revada formularul, citeste email/parola pe POST, cauta userul cu prepared statement, verifica hashul, regenereaza ID-ul de sesiune si salveaza user_id/user_name in sesiune."
+  },
+  {
+    "id": "project-scenario-002",
+    "type": "scenario",
+    "category": "project",
+    "difficulty": 5,
+    "priority": 5,
+    "title": "Explica creare ticket",
+    "source": "ticket_new.php",
+    "prompt": "Intervievatorul cere sa explici de ce ticket_new are si PHP si HTML in acelasi fisier.",
+    "parts": [
+      "GET afiseaza",
+      "POST proceseaza",
+      "Valideaza",
+      "Insereaza",
+      "Afiseaza erori"
+    ],
+    "answer": "Este stil PHP procedural clasic: acelasi fisier gestioneaza ruta. Partea PHP de sus proceseaza requestul, iar HTML-ul afiseaza formularul si erorile. Pentru proiect mic este simplu; la proiect mare l-as separa in controller/view."
+  },
+  {
+    "id": "project-scenario-003",
+    "type": "scenario",
+    "category": "security",
+    "difficulty": 5,
+    "priority": 5,
+    "title": "Atac cu ticket ID ghicit",
+    "source": "ticket_view.php",
+    "prompt": "Un user schimba URL-ul din id=3 in id=4. Ce il opreste?",
+    "parts": [
+      "Cast la int",
+      "Prepared statement",
+      "AND user_id",
+      "404 generic"
+    ],
+    "answer": "Protectia principala este AND user_id = current_user_id in query. Castul si prepared statement ajuta input/SQL, dar autorizarea obiectului vine din user_id."
+  },
+  {
+    "id": "project-scenario-004",
+    "type": "scenario",
+    "category": "security",
+    "difficulty": 5,
+    "priority": 5,
+    "title": "Atac CSRF delete",
+    "source": "ticket_delete.php",
+    "prompt": "Descrie un atac realist impotriva delete fara CSRF token.",
+    "parts": [
+      "Victima e logata",
+      "Site extern trimite POST",
+      "Cookie sesiune se trimite",
+      "Ticket sters"
+    ],
+    "answer": "Daca victima este logata, un site extern poate avea un formular auto-submit catre ticket_delete.php cu id. Browserul trimite cookie-ul, iar serverul crede ca userul a cerut stergerea."
+  },
+  {
+    "id": "project-scenario-005",
+    "type": "scenario",
+    "category": "debugging",
+    "difficulty": 5,
+    "priority": 5,
+    "title": "Bug dupa refactor",
+    "source": "project",
+    "prompt": "Dupa ce muti nav.php, toate paginile protejate dau eroare include. Cum investighezi?",
+    "parts": [
+      "Citesc mesajul exact",
+      "Verific __DIR__",
+      "Verific path partials",
+      "Testez o pagina"
+    ],
+    "answer": "In PHP include paths relative pot crea probleme. Folosesc __DIR__ pentru cai stabile si verific daca fisierul exista in partials/nav.php."
+  },
+  {
+    "id": "project-scenario-006",
+    "type": "scenario",
+    "category": "architecture",
+    "difficulty": 5,
+    "priority": 5,
+    "title": "Cum ai adauga rol admin",
+    "source": "project",
+    "prompt": "Cum ai extinde proiectul cu admin care vede toate tichetele?",
+    "parts": [
+      "Schema users role",
+      "Autorizare separata",
+      "Query conditionat",
+      "UI separat",
+      "Teste"
+    ],
+    "answer": "As adauga role in users, helper current_user_role/require_admin, query-uri care pentru admin nu filtreaza dupa user_id sau folosesc reguli clare, plus UI si teste. Nu as scoate pur si simplu user_id din toate query-urile."
+  },
+  {
+    "id": "project-scenario-007",
+    "type": "scenario",
+    "category": "architecture",
+    "difficulty": 5,
+    "priority": 5,
+    "title": "Cum ai adauga cautare",
+    "source": "index.php",
+    "prompt": "Cum ai adauga cautare dupa titlu/descriere in dashboard?",
+    "parts": [
+      "Input search",
+      "GET parameter",
+      "WHERE user_id si LIKE",
+      "Prepared statement",
+      "Index/tradeoff"
+    ],
+    "answer": "As folosi GET q, validare/trim, query cu user_id obligatoriu si LIKE pe title/description prin prepared statement. Pentru volum mare as analiza full-text index."
+  },
+  {
+    "id": "project-scenario-008",
+    "type": "scenario",
+    "category": "architecture",
+    "difficulty": 5,
+    "priority": 5,
+    "title": "Cum ai adauga paginare",
+    "source": "index.php",
+    "prompt": "Dashboardul are 50.000 tichete. Ce schimbi?",
+    "parts": [
+      "LIMIT/OFFSET sau keyset",
+      "count",
+      "index",
+      "UI"
+    ],
+    "answer": "Adaug paginare, ideal cu LIMIT si indexuri potrivite. Pentru volum mare keyset pagination poate fi mai stabila decat OFFSET mare."
+  },
+  {
+    "id": "project-scenario-009",
+    "type": "scenario",
+    "category": "security",
+    "difficulty": 5,
+    "priority": 5,
+    "title": "Cum ai securiza config",
+    "source": "config.php",
+    "prompt": "Repo-ul va fi public. Ce faci cu config.php?",
+    "parts": [
+      "Nu commit secrete",
+      "env vars",
+      "example config",
+      "permisiuni DB"
+    ],
+    "answer": "Scot credentialele reale din repo, folosesc variabile de mediu, las config.example.php si creez user DB cu drepturi minime."
+  },
+  {
+    "id": "project-scenario-010",
+    "type": "scenario",
+    "category": "project",
+    "difficulty": 5,
+    "priority": 5,
+    "title": "Roadmap de imbunatatiri",
+    "source": "project",
+    "prompt": "Intervievatorul intreaba ce ai face in urmatoarea versiune.",
+    "parts": [
+      "Security",
+      "Reliability",
+      "UX",
+      "Architecture",
+      "Tests"
+    ],
+    "answer": "As prioritiza CSRF, fix rowCount, tranzactii, tratare exceptii, rate limiting, apoi paginare/cautare, separare mai clara controller/view si teste pentru flow-uri critice."
+  },
+  {
+    "id": "concept-php-001",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 1,
+    "priority": 4,
+    "title": "Variabila PHP",
+    "source": "PHP basics",
+    "prompt": "Cum declari o variabila in PHP si ce inseamna ca PHP este dynamically typed?",
+    "answer": "Variabilele incep cu $, ex. $name. Tipul este determinat la runtime in functie de valoare, desi poti folosi type hints pentru functii."
+  },
+  {
+    "id": "concept-php-002",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 2,
+    "priority": 4,
+    "title": "== vs ===",
+    "source": "PHP trap",
+    "prompt": "Care este diferenta dintre == si === in PHP?",
+    "answer": "== compara cu conversie de tip, === compara si valoarea si tipul. In cod sigur preferi === ca sa eviti surprize."
+  },
+  {
+    "id": "concept-php-003",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 2,
+    "priority": 4,
+    "title": "isset vs empty",
+    "source": "PHP trap",
+    "prompt": "Care este diferenta dintre isset($x) si empty($x)?",
+    "answer": "isset verifica daca variabila exista si nu este null. empty este true pentru valori considerate goale: '', 0, '0', [], false, null."
+  },
+  {
+    "id": "concept-php-004",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "Null coalescing",
+    "source": "PHP basics",
+    "prompt": "Ce face operatorul ?? in $_POST['email'] ?? ''?",
+    "answer": "Returneaza valoarea din stanga daca exista si nu este null, altfel valoarea default din dreapta. Evita notice pentru index lipsa."
+  },
+  {
+    "id": "concept-php-005",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "Type hint void",
+    "source": "PHP basics",
+    "prompt": "Ce inseamna function redirect(string $path): void?",
+    "answer": "Parametrul trebuie sa fie string, iar functia nu returneaza o valoare. In cazul redirect, ea trimite header si face exit."
+  },
+  {
+    "id": "concept-php-006",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "include vs require",
+    "source": "PHP basics",
+    "prompt": "Diferenta dintre include si require?",
+    "answer": "Ambele incarca fisier. require produce eroare fatala daca fisierul lipseste; include produce warning si scriptul poate continua."
+  },
+  {
+    "id": "concept-php-007",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "require_once",
+    "source": "PHP basics",
+    "prompt": "Ce adauga varianta _once?",
+    "answer": "Previne includerea aceluiasi fisier de mai multe ori in acelasi request, evitand redeclarari de functii/clase."
+  },
+  {
+    "id": "concept-php-008",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "GET vs POST PHP",
+    "source": "HTTP/PHP",
+    "prompt": "Cand folosesti $_GET si cand $_POST?",
+    "answer": "$_GET pentru parametri de citire/navigare in URL; $_POST pentru date trimise in body, de obicei actiuni care modifica stare."
+  },
+  {
+    "id": "concept-php-009",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "Superglobale",
+    "source": "PHP basics",
+    "prompt": "Numeste superglobale relevante pentru o aplicatie web PHP.",
+    "answer": "$_GET, $_POST, $_SERVER, $_SESSION, $_COOKIE, $_FILES. Ele sunt disponibile global in script."
+  },
+  {
+    "id": "concept-php-010",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "Headers before output",
+    "source": "PHP trap",
+    "prompt": "De ce header() trebuie apelat inainte de output?",
+    "answer": "HTTP headers se trimit inaintea body-ului. Daca ai echo/spatii/BOM inainte, PHP poate trimite deja body si header() esueaza."
+  },
+  {
+    "id": "concept-php-011",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Output buffering",
+    "source": "PHP concept",
+    "prompt": "Cum poate output buffering afecta problema headers already sent?",
+    "answer": "Buffering poate intarzia trimiterea outputului, permitand header() mai tarziu, dar nu trebuie folosit ca scuza pentru arhitectura dezordonata."
+  },
+  {
+    "id": "concept-php-012",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "foreach",
+    "source": "PHP basics",
+    "prompt": "De ce foreach este potrivit pentru array-ul de erori?",
+    "answer": "Parcurge usor fiecare element fara sa gestionezi manual indici. Este clar pentru liste de mesaje."
+  },
+  {
+    "id": "concept-php-013",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "json_encode",
+    "source": "PHP/JSON",
+    "prompt": "Ce face json_encode si cand poate esua?",
+    "answer": "Transforma valori PHP in JSON. Poate esua la date neencodabile sau encoding invalid; in cod robust verifici json_last_error."
+  },
+  {
+    "id": "concept-php-014",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "json_decode assoc",
+    "source": "PHP/JSON",
+    "prompt": "Diferenta dintre json_decode($s) si json_decode($s, true)?",
+    "answer": "Fara true obtii obiecte stdClass; cu true obtii array-uri asociative."
+  },
+  {
+    "id": "concept-php-015",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Exceptions",
+    "source": "PHP basics",
+    "prompt": "Ce este un try/catch si unde ar ajuta in proiecte DB?",
+    "answer": "try/catch prinde exceptii ca sa controlezi eroarea. Ajuta la PDOException pentru duplicate email sau conexiune DB."
+  },
+  {
+    "id": "concept-php-016",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Date validation",
+    "source": "PHP security",
+    "prompt": "Diferenta dintre validare si sanitizare?",
+    "answer": "Validarea decide daca datele sunt acceptabile. Sanitizarea transforma datele. Pentru securitate ai nevoie si de escaping la output."
+  },
+  {
+    "id": "concept-php-017",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "strlen trap",
+    "source": "PHP trap",
+    "prompt": "Ce capcana are strlen pentru caractere Unicode?",
+    "answer": "strlen numara bytes, nu caractere Unicode. Pentru caractere multibyte se foloseste mb_strlen."
+  },
+  {
+    "id": "concept-php-018",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "trim",
+    "source": "PHP basics",
+    "prompt": "Ce elimina trim in mod implicit?",
+    "answer": "Elimina whitespace de la inceput si sfarsit: spatii, taburi, newline etc."
+  },
+  {
+    "id": "concept-php-019",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Password rehash",
+    "source": "PHP auth",
+    "prompt": "Ce este password_needs_rehash?",
+    "answer": "Verifica daca hash-ul existent ar trebui recalculat cu algoritm/cost mai nou dupa un login reusit."
+  },
+  {
+    "id": "concept-php-020",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Session fixation",
+    "source": "PHP auth",
+    "prompt": "Explica session fixation fara jargon.",
+    "answer": "Atacatorul face victima sa foloseasca un ID de sesiune cunoscut, apoi dupa login foloseste acelasi ID. Regenerarea ID-ului dupa login rupe atacul."
+  },
+  {
+    "id": "concept-js-001",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 1,
+    "priority": 3,
+    "title": "let const var",
+    "source": "JavaScript basics",
+    "prompt": "Diferenta dintre let, const si var?",
+    "answer": "const nu permite reasignare, let permite reasignare si are block scope, var are function scope si comportament mai vechi/hoisting problematic."
+  },
+  {
+    "id": "concept-js-002",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 2,
+    "priority": 4,
+    "title": "DOM select",
+    "source": "JavaScript DOM",
+    "prompt": "Ce face document.querySelectorAll('.status-select')?",
+    "answer": "Returneaza toate elementele care se potrivesc selectorului CSS .status-select, ca NodeList iterabil."
+  },
+  {
+    "id": "concept-js-003",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 2,
+    "priority": 4,
+    "title": "addEventListener",
+    "source": "JavaScript DOM",
+    "prompt": "De ce preferam addEventListener in loc de onchange inline?",
+    "answer": "Separa comportamentul de HTML, permite mai multi listeneri si face codul mai usor de mentinut."
+  },
+  {
+    "id": "concept-js-004",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Promise",
+    "source": "JavaScript async",
+    "prompt": "Ce este un Promise?",
+    "answer": "Un obiect care reprezinta o operatie asincrona ce se poate finaliza cu success sau eroare. fetch returneaza Promise."
+  },
+  {
+    "id": "concept-js-005",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "fetch HTTP error",
+    "source": "JavaScript trap",
+    "prompt": "Fetch intra in catch la 404?",
+    "answer": "Nu doar pentru status HTTP. fetch se rezolva normal pentru 404/500; trebuie verificat response.ok. catch este pentru erori de retea/parsare etc."
+  },
+  {
+    "id": "concept-js-006",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "JSON stringify",
+    "source": "JavaScript JSON",
+    "prompt": "Ce face JSON.stringify?",
+    "answer": "Transforma obiect/array JS intr-un string JSON care poate fi trimis in body-ul requestului."
+  },
+  {
+    "id": "concept-js-007",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "JSON parse",
+    "source": "JavaScript JSON",
+    "prompt": "Ce face response.json()?",
+    "answer": "Citeste body-ul raspunsului si il parseaza ca JSON, returnand un Promise cu obiectul rezultat."
+  },
+  {
+    "id": "concept-js-008",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 2,
+    "priority": 4,
+    "title": "textContent",
+    "source": "JavaScript security",
+    "prompt": "De ce textContent este mai sigur decat innerHTML pentru date user?",
+    "answer": "textContent trateaza totul ca text. innerHTML interpreteaza markup si poate executa/insera continut periculos daca datele nu sunt sigure."
+  },
+  {
+    "id": "concept-js-009",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "Dataset",
+    "source": "JavaScript DOM",
+    "prompt": "Cum se mapeaza data-ticket-id in dataset?",
+    "answer": "In JS devine element.dataset.ticketId. Atributele data-* se convertesc in camelCase."
+  },
+  {
+    "id": "concept-js-010",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Event preventDefault",
+    "source": "JavaScript DOM",
+    "prompt": "Ce face event.preventDefault la submit?",
+    "answer": "Opreste comportamentul implicit al formularului, de obicei navigare/reload, ca sa poti gestiona submitul prin JS."
+  },
+  {
+    "id": "concept-js-011",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "Debounce",
+    "source": "JavaScript concept",
+    "prompt": "Ce este debounce si unde ar fi util?",
+    "answer": "Amana executia pana cand userul se opreste din actiuni repetate. Util pentru cautare live ca sa nu trimiti request la fiecare tasta."
+  },
+  {
+    "id": "concept-js-012",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "Event delegation",
+    "source": "JavaScript concept",
+    "prompt": "Ce este event delegation?",
+    "answer": "Pui listener pe un parinte si folosesti event.target pentru copii. Util cand elementele sunt adaugate dinamic."
+  },
+  {
+    "id": "concept-js-013",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "XSS via template literal",
+    "source": "JavaScript trap",
+    "prompt": "De ce poate fi periculos sa construiesti HTML cu `${userInput}`?",
+    "answer": "Daca pui input direct in innerHTML/template, userul poate injecta markup/script. Trebuie textContent sau escaping corect."
+  },
+  {
+    "id": "concept-js-014",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "LocalStorage",
+    "source": "JavaScript storage",
+    "prompt": "Ce limite are localStorage?",
+    "answer": "Este sincron, string-only, per origin si accesibil JavaScriptului. Nu se foloseste pentru secrete sensibile."
+  },
+  {
+    "id": "concept-js-015",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "Service worker",
+    "source": "PWA",
+    "prompt": "Ce face un service worker intr-un PWA?",
+    "answer": "Ruleaza separat de pagina si poate intercepta requesturi, cache-ui resurse si permite comportament offline."
+  },
+  {
+    "id": "concept-js-016",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "Strict equality JS",
+    "source": "JavaScript trap",
+    "prompt": "Diferenta dintre == si === in JavaScript?",
+    "answer": "== face conversii de tip; === compara strict tip si valoare. Pentru predictibilitate preferi ===."
+  },
+  {
+    "id": "concept-js-017",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "Truthy falsy",
+    "source": "JavaScript trap",
+    "prompt": "Da exemple de valori falsy in JS.",
+    "answer": "false, 0, -0, 0n, '', null, undefined, NaN. Restul sunt in general truthy, inclusiv [] si {}."
+  },
+  {
+    "id": "concept-js-018",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "Async await",
+    "source": "JavaScript async",
+    "prompt": "Ce avantaj are async/await fata de lanturi then?",
+    "answer": "Face codul asincron mai usor de citit ca flux secvential, dar tot returneaza Promises si necesita try/catch pentru erori."
+  },
+  {
+    "id": "concept-js-019",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "CORS",
+    "source": "Web security",
+    "prompt": "Ce este CORS pe scurt?",
+    "answer": "Mecanism browser care controleaza ce origini pot citi raspunsuri cross-origin. Nu este mecanism de autentificare."
+  },
+  {
+    "id": "concept-js-020",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Credentials fetch",
+    "source": "Fetch auth",
+    "prompt": "Ce optiuni credentials exista la fetch?",
+    "answer": "omit, same-origin, include. same-origin trimite cookie-uri pe acelasi origin; include le trimite si cross-origin daca politica permite."
+  },
+  {
+    "id": "concept-mysql-001",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 2,
+    "priority": 4,
+    "title": "Primary key",
+    "source": "MySQL basics",
+    "prompt": "Ce este o cheie primara?",
+    "answer": "Identifica unic fiecare rand din tabela. De obicei este id auto increment."
+  },
+  {
+    "id": "concept-mysql-002",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 2,
+    "priority": 4,
+    "title": "Foreign key",
+    "source": "MySQL basics",
+    "prompt": "Ce este o cheie straina?",
+    "answer": "O constrangere care leaga o coloana de cheia primara din alta tabela, mentinand integritatea relationala."
+  },
+  {
+    "id": "concept-mysql-003",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Index tradeoff",
+    "source": "MySQL trap",
+    "prompt": "Care este trade-off-ul indexurilor?",
+    "answer": "Accelereaza citirile/filtrarile, dar consuma spatiu si pot incetini insert/update/delete pentru ca indexurile trebuie actualizate."
+  },
+  {
+    "id": "concept-mysql-004",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "Prepared statements",
+    "source": "MySQL security",
+    "prompt": "De ce prepared statements previn SQL injection?",
+    "answer": "Separ query-ul de date. Inputul este tratat ca valoare, nu ca parte din codul SQL."
+  },
+  {
+    "id": "concept-mysql-005",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "INNER JOIN",
+    "source": "MySQL basics",
+    "prompt": "Ce face INNER JOIN?",
+    "answer": "Returneaza randuri care au potrivire in ambele tabele conform conditiei ON."
+  },
+  {
+    "id": "concept-mysql-006",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "LEFT JOIN",
+    "source": "MySQL basics",
+    "prompt": "Ce face LEFT JOIN?",
+    "answer": "Returneaza toate randurile din stanga si potrivirile din dreapta; daca nu exista potrivire, coloanele din dreapta sunt NULL."
+  },
+  {
+    "id": "concept-mysql-007",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "WHERE vs HAVING",
+    "source": "MySQL trap",
+    "prompt": "Diferenta dintre WHERE si HAVING?",
+    "answer": "WHERE filtreaza randuri inainte de agregare. HAVING filtreaza grupuri dupa GROUP BY/agregare."
+  },
+  {
+    "id": "concept-mysql-008",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "COUNT(*)",
+    "source": "MySQL basics",
+    "prompt": "Ce face COUNT(*)?",
+    "answer": "Numara randurile rezultate. COUNT(coloana) nu numara valorile NULL din acea coloana."
+  },
+  {
+    "id": "concept-mysql-009",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Transaction",
+    "source": "MySQL basics",
+    "prompt": "Ce este o tranzactie?",
+    "answer": "Un grup de operatii DB care se aplica toate cu commit sau se anuleaza cu rollback, pastrand consistenta."
+  },
+  {
+    "id": "concept-mysql-010",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "ACID",
+    "source": "MySQL concept",
+    "prompt": "Ce inseamna ACID pe scurt?",
+    "answer": "Atomicity, Consistency, Isolation, Durability: proprietati ale tranzactiilor fiabile."
+  },
+  {
+    "id": "concept-mysql-011",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Unique key",
+    "source": "MySQL basics",
+    "prompt": "Diferenta dintre PRIMARY KEY si UNIQUE KEY?",
+    "answer": "Ambele impun unicitate. Primary key identifica randul principal si nu permite NULL; unique poate exista de mai multe ori si poate avea reguli DB pentru NULL."
+  },
+  {
+    "id": "concept-mysql-012",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "VARCHAR length",
+    "source": "MySQL basics",
+    "prompt": "De ce limitezi VARCHAR?",
+    "answer": "Pentru validare de schema, eficienta si claritate a modelului. Nu toate campurile trebuie sa fie TEXT nelimitat."
+  },
+  {
+    "id": "concept-mysql-013",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "N+1 problem",
+    "source": "MySQL performance",
+    "prompt": "Ce este problema N+1?",
+    "answer": "Faci un query initial si apoi cate un query pentru fiecare rand. Devine lent; se rezolva cu JOIN sau query-uri batch."
+  },
+  {
+    "id": "concept-mysql-014",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Explain",
+    "source": "MySQL performance",
+    "prompt": "La ce foloseste EXPLAIN?",
+    "answer": "Arata planul de executie al query-ului: indexuri folosite, tip de scanare, estimari. Ajuta la optimizare."
+  },
+  {
+    "id": "concept-mysql-015",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "SQL NULL",
+    "source": "MySQL trap",
+    "prompt": "De ce WHERE col = NULL este gresit?",
+    "answer": "NULL se testeaza cu IS NULL sau IS NOT NULL. Comparatiile normale cu NULL nu se comporta ca valori obisnuite."
+  },
+  {
+    "id": "concept-mysql-016",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "LIKE wildcard",
+    "source": "MySQL basics",
+    "prompt": "Ce fac % si _ in LIKE?",
+    "answer": "% inseamna orice secventa de caractere, _ inseamna un singur caracter."
+  },
+  {
+    "id": "concept-mysql-017",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "SQL injection LIKE",
+    "source": "MySQL security",
+    "prompt": "Prepared statements mai conteaza la LIKE?",
+    "answer": "Da. Construiesti patternul ca valoare, ex. execute(['%' . $q . '%']). Nu concatenezi input direct in SQL."
+  },
+  {
+    "id": "concept-mysql-018",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "Normalization",
+    "source": "Database design",
+    "prompt": "Ce este normalizarea?",
+    "answer": "Organizarea datelor in tabele relationale pentru a reduce duplicarea si anomaliile de update."
+  },
+  {
+    "id": "concept-mysql-019",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "Denormalization",
+    "source": "Database design",
+    "prompt": "Cand denormalizezi?",
+    "answer": "Cand performanta sau raportarea necesita duplicare controlata de date, acceptand cost de consistenta."
+  },
+  {
+    "id": "concept-mysql-020",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Isolation",
+    "source": "MySQL transactions",
+    "prompt": "Ce problema rezolva izolarea tranzactiilor?",
+    "answer": "Controleaza cum tranzactiile simultane se vad una pe alta, reducand dirty reads, non-repeatable reads sau phantom reads."
+  },
+  {
+    "id": "concept-oop-001",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 2,
+    "priority": 4,
+    "title": "Class object",
+    "source": "PHP OOP",
+    "prompt": "Diferenta dintre clasa si obiect?",
+    "answer": "Clasa este blueprint-ul; obiectul este o instanta concreta a clasei cu stare si comportament."
+  },
+  {
+    "id": "concept-oop-002",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 2,
+    "priority": 4,
+    "title": "Constructor",
+    "source": "PHP OOP",
+    "prompt": "Ce este __construct in PHP?",
+    "answer": "Metoda apelata automat cand creezi un obiect, folosita pentru initializare/dependinte."
+  },
+  {
+    "id": "concept-oop-003",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Public private protected",
+    "source": "PHP OOP",
+    "prompt": "Diferenta dintre public, private si protected?",
+    "answer": "public accesibil de oriunde, private doar in clasa, protected in clasa si subclase."
+  },
+  {
+    "id": "concept-oop-004",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Encapsulation",
+    "source": "OOP",
+    "prompt": "Ce este incapsularea?",
+    "answer": "Ascunderea detaliilor interne si expunerea unei interfete controlate prin metode publice."
+  },
+  {
+    "id": "concept-oop-005",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Inheritance",
+    "source": "OOP",
+    "prompt": "Ce este mostenirea?",
+    "answer": "O clasa copil reutilizeaza/extinde comportamentul unei clase parinte. Trebuie folosita cu grija ca sa nu creeze cuplare mare."
+  },
+  {
+    "id": "concept-oop-006",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Interface",
+    "source": "PHP OOP",
+    "prompt": "Ce este o interfata?",
+    "answer": "Un contract de metode pe care clasele il implementeaza. Ajuta la polimorfism si testare."
+  },
+  {
+    "id": "concept-oop-007",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Abstract class",
+    "source": "PHP OOP",
+    "prompt": "Diferenta dintre clasa abstracta si interfata?",
+    "answer": "Clasa abstracta poate avea implementare si stare comuna; interfata defineste contract. In PHP modern interfetele pot avea constante si metode fara implementare."
+  },
+  {
+    "id": "concept-oop-008",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Dependency injection",
+    "source": "OOP design",
+    "prompt": "Ce este dependency injection?",
+    "answer": "Obiectul primeste dependintele din exterior, in loc sa le creeze singur. Reduce cuplarea si ajuta testarea."
+  },
+  {
+    "id": "concept-oop-009",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Static trap",
+    "source": "PHP OOP trap",
+    "prompt": "De ce prea multe metode statice pot fi problematice?",
+    "answer": "Cresc cuplarea globala si ingreuneaza testarea/mock-uirea. Sunt ok pentru helperi simpli, dar nu pentru orice logica."
+  },
+  {
+    "id": "concept-oop-010",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "MVC",
+    "source": "Architecture",
+    "prompt": "Ce este MVC?",
+    "answer": "Model gestioneaza date/logica, View afiseaza UI, Controller proceseaza requestul si coordoneaza model/view."
+  },
+  {
+    "id": "concept-oop-011",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Repository pattern",
+    "source": "PHP architecture",
+    "prompt": "Ce rol are un repository?",
+    "answer": "Izoleaza accesul la date pentru o entitate, ex. TicketRepository cu findByUser, create, update."
+  },
+  {
+    "id": "concept-oop-012",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Service layer",
+    "source": "PHP architecture",
+    "prompt": "Ce rol are un service?",
+    "answer": "Contine logica de business care nu apartine direct controllerului sau repositoryului, ex. TicketService pentru creare ticket cu note in tranzactie."
+  },
+  {
+    "id": "concept-oop-013",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "DTO",
+    "source": "PHP architecture",
+    "prompt": "Ce este un DTO?",
+    "answer": "Data Transfer Object: obiect simplu pentru transport de date validate intre straturi."
+  },
+  {
+    "id": "concept-oop-014",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "SOLID S",
+    "source": "OOP principles",
+    "prompt": "Ce inseamna Single Responsibility Principle?",
+    "answer": "O clasa/functie ar trebui sa aiba un singur motiv principal de schimbare. Reduce complexitatea."
+  },
+  {
+    "id": "concept-oop-015",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Polymorphism",
+    "source": "OOP",
+    "prompt": "Ce este polimorfismul?",
+    "answer": "Codul lucreaza cu un contract comun, iar implementari diferite pot fi schimbate fara modificarea codului consumator."
+  },
+  {
+    "id": "concept-web-001",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "XSS",
+    "source": "Web security",
+    "prompt": "Ce este XSS?",
+    "answer": "Injectarea de script/HTML malițios care ruleaza in browserul altui user. Se previne prin escaping la output si evitarea innerHTML cu date user."
+  },
+  {
+    "id": "concept-web-002",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "CSRF",
+    "source": "Web security",
+    "prompt": "Ce este CSRF?",
+    "answer": "Atac in care browserul unui user logat este pacalit sa trimita o cerere autentificata catre aplicatie. Se previne cu token CSRF si SameSite cookies."
+  },
+  {
+    "id": "concept-web-003",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "SQL Injection",
+    "source": "Web security",
+    "prompt": "Ce este SQL injection?",
+    "answer": "Inputul userului modifica structura query-ului SQL. Se previne cu prepared statements si validare."
+  },
+  {
+    "id": "concept-web-004",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "SameSite cookies",
+    "source": "Web security",
+    "prompt": "Cum ajuta SameSite la CSRF?",
+    "answer": "Limiteaza trimiterea cookie-urilor in contexte cross-site. SameSite=Lax/Strict reduce multe atacuri CSRF, dar tokenul ramane recomandat."
+  },
+  {
+    "id": "concept-web-005",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "HttpOnly cookie",
+    "source": "Web security",
+    "prompt": "Ce face HttpOnly pe cookie?",
+    "answer": "Impiedica accesul JavaScript la cookie, reducand impactul XSS asupra furtului de sesiune."
+  },
+  {
+    "id": "concept-web-006",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Secure cookie",
+    "source": "Web security",
+    "prompt": "Ce face atributul Secure pe cookie?",
+    "answer": "Cookie-ul este trimis doar prin HTTPS, nu prin HTTP."
+  },
+  {
+    "id": "concept-web-007",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "HTTP stateless",
+    "source": "Web basics",
+    "prompt": "Ce inseamna ca HTTP este stateless?",
+    "answer": "Fiecare request este independent. Sesiunile/cookie-urile sunt mecanisme pentru a lega requesturile de acelasi user."
+  },
+  {
+    "id": "concept-web-008",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "HTTP status 200/302/404",
+    "source": "Web basics",
+    "prompt": "Ce inseamna 200, 302 si 404?",
+    "answer": "200 succes, 302 redirect temporar, 404 resursa nu a fost gasita sau nu este expusa."
+  },
+  {
+    "id": "concept-web-009",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "REST-ish endpoint",
+    "source": "Web basics",
+    "prompt": "Ce inseamna endpoint JSON in comparatie cu pagina HTML?",
+    "answer": "Endpointul intoarce date pentru JS/client, pagina HTML intoarce interfata completa pentru browser."
+  },
+  {
+    "id": "concept-web-010",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Authorization bug",
+    "source": "Web security",
+    "prompt": "Care este diferenta dintre autentificare si autorizare?",
+    "answer": "Autentificarea confirma cine esti; autorizarea confirma ce ai voie sa accesezi/faci."
+  },
+  {
+    "id": "concept-web-011",
+    "type": "short_answer",
+    "category": "debugging",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "Network tab",
+    "source": "Debugging",
+    "prompt": "Ce vezi in Network tab cand depanezi fetch?",
+    "answer": "URL, metoda, status HTTP, request headers/body, response headers/body si timing."
+  },
+  {
+    "id": "concept-web-012",
+    "type": "short_answer",
+    "category": "debugging",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "Console tab",
+    "source": "Debugging",
+    "prompt": "Ce cauti in Console cand JS nu merge?",
+    "answer": "Erori de sintaxa/runtime, promise rejections, loguri si linii de cod indicate de browser."
+  },
+  {
+    "id": "concept-web-013",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "Progressive enhancement",
+    "source": "Frontend",
+    "prompt": "Ce este progressive enhancement?",
+    "answer": "Aplicatia functioneaza de baza fara JS, apoi JS adauga imbunatatiri. Este util pentru robustete si accesibilitate."
+  },
+  {
+    "id": "concept-web-014",
+    "type": "short_answer",
+    "category": "htmlcss",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "Semantic HTML",
+    "source": "HTML",
+    "prompt": "De ce conteaza elemente semantice precum header, main, nav?",
+    "answer": "Ajuta accesibilitatea, SEO si structura clara pentru browser si cititoare de ecran."
+  },
+  {
+    "id": "concept-web-015",
+    "type": "short_answer",
+    "category": "htmlcss",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "ARIA live",
+    "source": "Accessibility",
+    "prompt": "Unde ar ajuta aria-live in proiect?",
+    "answer": "La mesajele Saved/Error pentru status, ca screen readerul sa anunte feedbackul dinamic."
+  },
+  {
+    "id": "concept-web-016",
+    "type": "short_answer",
+    "category": "htmlcss",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "Responsive design",
+    "source": "CSS",
+    "prompt": "Ce inseamna mobile-first?",
+    "answer": "Pornesti stilurile pentru ecrane mici si adaugi complexitate pentru ecrane mai mari cu media queries."
+  },
+  {
+    "id": "concept-web-017",
+    "type": "short_answer",
+    "category": "htmlcss",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "CSS specificity",
+    "source": "CSS trap",
+    "prompt": "De ce uneori o regula CSS nu se aplica?",
+    "answer": "Poate fi suprascrisa de o regula mai specifica, mai tarzie sau de inline styles. Specificitatea si ordinea conteaza."
+  },
+  {
+    "id": "concept-web-018",
+    "type": "short_answer",
+    "category": "htmlcss",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "Flex vs Grid",
+    "source": "CSS",
+    "prompt": "Cand alegi flex si cand grid?",
+    "answer": "Flex pentru aranjare pe o axa; grid pentru layout pe doua axe cu randuri si coloane."
+  },
+  {
+    "id": "concept-web-019",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "PWA offline limit",
+    "source": "PWA",
+    "prompt": "Ce nu poate face un PWA static pe GitHub Pages?",
+    "answer": "Nu poate rula PHP sau MySQL server-side. Poate stoca local si servi fisiere statice/cache."
+  },
+  {
+    "id": "concept-web-020",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 3,
+    "priority": 3,
+    "title": "Cache invalidation",
+    "source": "PWA trap",
+    "prompt": "De ce schimbi numele cache-ului in service worker cand modifici fisiere?",
+    "answer": "Ca browserul sa creeze un cache nou si sa elimine vechile resurse, evitand versiuni stale."
+  },
+  {
+    "id": "concept-trap-001",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Capcana empty string zero",
+    "source": "PHP trap",
+    "prompt": "De ce empty('0') poate fi periculos?",
+    "answer": "empty('0') este true in PHP. Daca '0' este valoare valida, poti respinge gresit inputul."
+  },
+  {
+    "id": "concept-trap-002",
+    "type": "short_answer",
+    "category": "php",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Capcana loose comparison",
+    "source": "PHP trap",
+    "prompt": "De ce comparatiile loose pot fi riscante la autentificare/tokenuri?",
+    "answer": "Conversiile de tip pot considera valori diferite ca egale. Pentru tokenuri/parole folosesti comparatii sigure/strict si hash_equals."
+  },
+  {
+    "id": "concept-trap-003",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Sanitize SQL capcana",
+    "source": "Security trap",
+    "prompt": "De ce addslashes nu este solutia corecta pentru SQL injection?",
+    "answer": "Escaparea manuala este fragila si depinde de context/encoding. Prepared statements sunt solutia corecta."
+  },
+  {
+    "id": "concept-trap-004",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Client validation capcana",
+    "source": "Security trap",
+    "prompt": "De ce nu este suficienta validarea din HTML/JS?",
+    "answer": "Clientul poate fi modificat sau ocolit complet. Serverul trebuie sa valideze tot."
+  },
+  {
+    "id": "concept-trap-005",
+    "type": "short_answer",
+    "category": "js",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "innerHTML capcana",
+    "source": "JS trap",
+    "prompt": "Cand este acceptabil innerHTML?",
+    "answer": "Cand continutul este complet controlat de dezvoltator sau sanitizat robust. Nu pentru input user raw."
+  },
+  {
+    "id": "concept-trap-006",
+    "type": "short_answer",
+    "category": "mysql",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Index capcana",
+    "source": "MySQL trap",
+    "prompt": "De ce un index pe fiecare coloana nu este mereu bun?",
+    "answer": "Indexurile costa spatiu si mentenanta la scrieri. Alegi indexuri pe query-uri reale, nu automat peste tot."
+  },
+  {
+    "id": "concept-trap-007",
+    "type": "short_answer",
+    "category": "architecture",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Premature abstraction",
+    "source": "Architecture trap",
+    "prompt": "Ce este overengineering pentru un proiect junior?",
+    "answer": "Adaugi patternuri/frameworkuri complexe fara nevoie reala. Mai bine claritate, securitate si flow-uri corecte."
+  },
+  {
+    "id": "concept-trap-008",
+    "type": "short_answer",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Hash in localStorage",
+    "source": "Security trap",
+    "prompt": "De ce nu salvezi tokenuri sensibile in localStorage daca poti evita?",
+    "answer": "Sunt accesibile prin JavaScript; un XSS le poate fura. Cookie HttpOnly este mai sigur pentru sesiuni."
+  },
+  {
+    "id": "concept-trap-009",
+    "type": "short_answer",
+    "category": "web",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "404 security",
+    "source": "Web trap",
+    "prompt": "De ce uneori returnezi 404 in loc de 403?",
+    "answer": "Ca sa nu confirmi existenta unei resurse pe care userul nu are voie sa o acceseze."
+  },
+  {
+    "id": "concept-trap-010",
+    "type": "short_answer",
+    "category": "debugging",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Merge la mine",
+    "source": "Debugging trap",
+    "prompt": "Ce raspunzi la 'merge la mine' ca junior matur?",
+    "answer": "Cer mediu exact, pasi de reproducere, versiuni, date de test, logs si incerc sa reproduc izolat. Nu presupun ca userul greseste."
+  },
+  {
+    "id": "concept-mcq-001",
+    "type": "mcq",
+    "category": "php",
+    "difficulty": 2,
+    "priority": 4,
+    "title": "Strict comparison PHP",
+    "source": "PHP",
+    "prompt": "Care comparatie verifica si tipul?",
+    "options": [
+      "===",
+      "==",
+      "=",
+      "<>"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "=== compara strict valoare si tip."
+  },
+  {
+    "id": "concept-mcq-002",
+    "type": "mcq",
+    "category": "php",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "Array asociativ",
+    "source": "PHP",
+    "prompt": "Care este acces corect la array asociativ?",
+    "options": [
+      "$user['email']",
+      "$user.email",
+      "user->email",
+      "$user(email)"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "Array-urile asociative se acceseaza cu cheie intre paranteze patrate."
+  },
+  {
+    "id": "concept-mcq-003",
+    "type": "mcq",
+    "category": "js",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "Metoda fetch",
+    "source": "JS",
+    "prompt": "Ce metoda HTTP este implicita la fetch daca nu setezi method?",
+    "options": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "fetch foloseste GET implicit."
+  },
+  {
+    "id": "concept-mcq-004",
+    "type": "mcq",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "response.ok",
+    "source": "JS",
+    "prompt": "response.ok este true pentru ce interval?",
+    "options": [
+      "Status 200-299",
+      "Doar 200",
+      "Orice raspuns JSON",
+      "Doar fara body"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "response.ok este true pentru statusuri HTTP 2xx."
+  },
+  {
+    "id": "concept-mcq-005",
+    "type": "mcq",
+    "category": "mysql",
+    "difficulty": 2,
+    "priority": 4,
+    "title": "WHERE",
+    "source": "SQL",
+    "prompt": "Ce face WHERE?",
+    "options": [
+      "Filtreaza randuri",
+      "Creeaza tabela",
+      "Cripteaza date",
+      "Sterge index"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "WHERE filtreaza randurile returnate/modificate de query."
+  },
+  {
+    "id": "concept-mcq-006",
+    "type": "mcq",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Rollback",
+    "source": "SQL",
+    "prompt": "Ce face ROLLBACK?",
+    "options": [
+      "Anuleaza tranzactia curenta",
+      "Confirma tranzactia",
+      "Creeaza index",
+      "Schimba parola"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "ROLLBACK revine asupra operatiilor neconfirmate din tranzactie."
+  },
+  {
+    "id": "concept-mcq-007",
+    "type": "mcq",
+    "category": "architecture",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Private property",
+    "source": "OOP",
+    "prompt": "Cine poate accesa direct o proprietate private?",
+    "options": [
+      "Doar clasa care o declara",
+      "Orice subclasa",
+      "Orice fisier PHP",
+      "Doar MySQL"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "private limiteaza accesul la clasa curenta."
+  },
+  {
+    "id": "concept-mcq-008",
+    "type": "mcq",
+    "category": "security",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "CSRF aparare",
+    "source": "Security",
+    "prompt": "Care este apararea principala anti-CSRF?",
+    "options": [
+      "Token imprevizibil verificat server-side",
+      "Doar POST",
+      "Doar CSS",
+      "Parola hashuita"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "Tokenul CSRF dovedeste ca formularul/requestul vine din aplicatia legitima."
+  },
+  {
+    "id": "concept-mcq-009",
+    "type": "mcq",
+    "category": "security",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "XSS aparare",
+    "source": "Security",
+    "prompt": "Ce previne XSS la output HTML?",
+    "options": [
+      "htmlspecialchars/textContent",
+      "password_hash",
+      "ON DELETE CASCADE",
+      "SELECT *"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "Escaping la output face inputul sa fie text, nu markup executabil."
+  },
+  {
+    "id": "concept-mcq-010",
+    "type": "mcq",
+    "category": "htmlcss",
+    "difficulty": 2,
+    "priority": 3,
+    "title": "Label accesibil",
+    "source": "HTML",
+    "prompt": "Ce atribut leaga label de input?",
+    "options": [
+      "for",
+      "href",
+      "src",
+      "data-id"
+    ],
+    "correct": [
+      0
+    ],
+    "answer": "label for corespunde cu id-ul inputului."
+  },
+  {
+    "id": "code-project-001",
+    "type": "code",
+    "category": "php",
+    "difficulty": 2,
+    "priority": 5,
+    "title": "Citeste helperul h",
+    "source": "helpers.php:5",
+    "prompt": "Ce face acest cod si ce problema previne?",
+    "snippet": "function h(?string $value): string\n{\n    return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8');\n}",
+    "answer": "Este un helper de escape pentru output HTML. Transforma caractere speciale in entitati HTML si previne XSS cand afisam input venit de la user.",
+    "followup": "De ce ENT_QUOTES este mai sigur in atribute HTML?"
+  },
+  {
+    "id": "code-project-002",
+    "type": "code",
+    "category": "auth",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "Guard pentru pagini protejate",
+    "source": "helpers.php:25",
+    "prompt": "De ce este important exit dupa header?",
+    "snippet": "function require_login(): void\n{\n    if (current_user_id() === null) {\n        header('Location: login.php');\n        exit;\n    }\n}",
+    "answer": "header('Location') anunta browserul sa redirectioneze, dar PHP continua executia daca nu folosesti exit. Fara exit, continut protejat poate fi generat in raspuns."
+  },
+  {
+    "id": "code-project-003",
+    "type": "code",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Conexiune PDO reutilizata",
+    "source": "db.php:6",
+    "prompt": "Ce rol are static aici?",
+    "snippet": "function get_db(): PDO\n{\n    static $pdo = null;\n\n    if ($pdo === null) {\n        $pdo = new PDO($dsn, DB_USER, DB_PASS, [...]);\n    }\n\n    return $pdo;\n}",
+    "answer": "static pastreaza valoarea intre apeluri in acelasi request. Astfel se creeaza o singura conexiune PDO si este reutilizata."
+  },
+  {
+    "id": "code-project-004",
+    "type": "code",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "Prepared statement login",
+    "source": "login.php:24",
+    "prompt": "De ce este aceasta varianta sigura fata de SQL injection?",
+    "snippet": "$stmt = $pdo->prepare('SELECT id, name, password_hash FROM users WHERE email = ?');\n$stmt->execute([$email]);\n$user = $stmt->fetch();",
+    "answer": "Emailul este trimis ca valoare separata prin execute, nu concatenat in SQL. Inputul nu poate modifica structura query-ului."
+  },
+  {
+    "id": "code-project-005",
+    "type": "code",
+    "category": "auth",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "Verificare parola",
+    "source": "login.php:29",
+    "prompt": "Ce verifica password_verify si de ce nu comparam stringuri direct?",
+    "snippet": "if ($user === false || !password_verify($password, $user['password_hash'])) {\n    $errors[] = 'Invalid email or password.';\n}",
+    "answer": "password_verify verifica parola raw fata de hash-ul salvat, tinand cont de algoritm si salt. Nu stocam si nu comparam parole raw."
+  },
+  {
+    "id": "code-project-006",
+    "type": "code",
+    "category": "auth",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Regenerare sesiune",
+    "source": "login.php:33",
+    "prompt": "Ce atac reduce acest cod?",
+    "snippet": "session_regenerate_id(true);\n\n$_SESSION['user_id'] = $user['id'];\n$_SESSION['user_name'] = $user['name'];",
+    "answer": "Reduce session fixation: dupa login se genereaza un ID nou de sesiune si vechiul ID este invalidat."
+  },
+  {
+    "id": "code-project-007",
+    "type": "code",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Validare email",
+    "source": "register.php:28",
+    "prompt": "Ce face conditia si de ce este server-side?",
+    "snippet": "if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {\n    $errors[] = 'A valid email address is required.';\n}",
+    "answer": "Verifica faptul ca emailul nu este gol si are format valid. Este server-side deoarece validarea din browser poate fi ocolita."
+  },
+  {
+    "id": "code-project-008",
+    "type": "code",
+    "category": "auth",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "Hash parola",
+    "source": "register.php:47",
+    "prompt": "De ce este gresit sa salvezi parola direct in baza?",
+    "snippet": "$hash = password_hash($password, PASSWORD_BCRYPT);\n$stmt = $pdo->prepare('INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)');\n$stmt->execute([$name, $email, $hash]);",
+    "answer": "Parola raw nu trebuie stocata. password_hash creeaza un hash one-way cu salt; la login verificam cu password_verify."
+  },
+  {
+    "id": "code-project-009",
+    "type": "code",
+    "category": "debugging",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Race condition register",
+    "source": "register.php:39",
+    "prompt": "Ce bug rar poate aparea intre SELECT si INSERT?",
+    "snippet": "$stmt = $pdo->prepare('SELECT id FROM users WHERE email = ?');\n$stmt->execute([$email]);\n\nif ($stmt->fetch() !== false) {\n    $errors[] = 'This email is already registered.';\n} else {\n    // INSERT user\n}",
+    "answer": "Doua requesturi simultane pot trece ambele de SELECT. UNIQUE KEY opreste duplicatul, dar trebuie try/catch pe INSERT pentru a afisa eroare prietenoasa."
+  },
+  {
+    "id": "code-project-010",
+    "type": "code",
+    "category": "crud",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "Creare ticket",
+    "source": "ticket_new.php:40",
+    "prompt": "Ce se insereaza si de unde vine user_id?",
+    "snippet": "$stmt = $pdo->prepare(\n    'INSERT INTO tickets (user_id, title, description, status) VALUES (?, ?, ?, ?)'\n);\n$stmt->execute([current_user_id(), $title, $description, 'Open']);",
+    "answer": "Se creeaza un ticket pentru userul logat. user_id vine din sesiune prin current_user_id, nu din formular, ca userul sa nu poata alege alt proprietar."
+  },
+  {
+    "id": "code-project-011",
+    "type": "code",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "lastInsertId",
+    "source": "ticket_new.php:45",
+    "prompt": "De ce este necesar acest ID?",
+    "snippet": "$ticketId = $pdo->lastInsertId();\n\n$stmt = $pdo->prepare('INSERT INTO ticket_notes (ticket_id, note) VALUES (?, ?)');",
+    "answer": "Dupa insertul ticketului, baza genereaza id-ul. Avem nevoie de el ca foreign key pentru notitele acelui ticket."
+  },
+  {
+    "id": "code-project-012",
+    "type": "code",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "JSON din hidden input",
+    "source": "ticket_new.php:20",
+    "prompt": "De ce decodam JSON aici?",
+    "snippet": "$decodedNotes = json_decode($_POST['working_notes'] ?? '[]', true);\nif (is_array($decodedNotes)) {\n    foreach ($decodedNotes as $note) {\n        $note = trim((string) $note);\n    }\n}",
+    "answer": "Notitele introduse inainte ca ticketul sa existe sunt trimise ca JSON intr-un hidden input. Serverul le decodeaza si le revalideaza."
+  },
+  {
+    "id": "code-project-013",
+    "type": "code",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Ownership la view",
+    "source": "ticket_view.php:12",
+    "prompt": "Ce vulnerabilitate previne AND user_id = ?",
+    "snippet": "$stmt = $pdo->prepare('SELECT * FROM tickets WHERE id = ? AND user_id = ?');\n$stmt->execute([$id, current_user_id()]);\n$ticket = $stmt->fetch();",
+    "answer": "Previne IDOR: userul nu poate vedea ticketul altcuiva doar schimband id-ul din URL."
+  },
+  {
+    "id": "code-project-014",
+    "type": "code",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Afisare descriere",
+    "source": "ticket_view.php:64",
+    "prompt": "De ce combinam h si nl2br?",
+    "snippet": "<p class=\"description\"><?= nl2br(h($ticket['description'])) ?></p>",
+    "answer": "h previne XSS, iar nl2br pastreaza randurile noi ca <br>. Ordinea este importanta: mai intai escapam continutul userului."
+  },
+  {
+    "id": "code-project-015",
+    "type": "code",
+    "category": "security",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "Delete prin POST",
+    "source": "ticket_delete.php",
+    "prompt": "Ce lipseste pentru securitate completa?",
+    "snippet": "if ($_SERVER['REQUEST_METHOD'] !== 'POST') {\n    http_response_code(405);\n    exit;\n}\n\n$stmt = $pdo->prepare('DELETE FROM tickets WHERE id = ? AND user_id = ?');",
+    "answer": "POST si ownership check sunt bune, dar lipseste CSRF token. Un site extern poate forta browserul unui user logat sa trimita POST."
+  },
+  {
+    "id": "code-project-016",
+    "type": "code",
+    "category": "debugging",
+    "difficulty": 4,
+    "priority": 5,
+    "title": "rowCount capcana",
+    "source": "status_update.php:43",
+    "prompt": "De ce poate fi gresita aceasta verificare?",
+    "snippet": "if ($stmt->rowCount() === 0) {\n    json_error(404, 'Ticket not found.');\n}",
+    "answer": "La UPDATE cu aceeasi valoare, MySQL poate raporta 0 randuri afectate desi randul exista. Trebuie verificata existenta separat."
+  },
+  {
+    "id": "code-project-017",
+    "type": "code",
+    "category": "php",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "JSON body",
+    "source": "status_update.php:27",
+    "prompt": "De ce nu folosim $_POST aici?",
+    "snippet": "$input = json_decode(file_get_contents('php://input'), true);",
+    "answer": "Requestul fetch trimite JSON raw, nu form-urlencoded. PHP nu populeaza $_POST automat pentru JSON, deci citim php://input."
+  },
+  {
+    "id": "code-project-018",
+    "type": "code",
+    "category": "security",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "Allowlist status",
+    "source": "status_update.php:31",
+    "prompt": "Ce regula de securitate vezi aici?",
+    "snippet": "$allowedStatuses = ['Open', 'In Progress', 'On Hold', 'Closed'];\n\nif (!in_array($status, $allowedStatuses, true)) {\n    json_error(422, 'Invalid status.');\n}",
+    "answer": "Este allowlist validation. Serverul accepta doar valori cunoscute, indiferent ce trimite clientul."
+  },
+  {
+    "id": "code-project-019",
+    "type": "code",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "Fetch status",
+    "source": "assets/app.js",
+    "prompt": "Ce trimite acest fetch si de ce credentials?",
+    "snippet": "fetch('status_update.php', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  credentials: 'same-origin',\n  body: JSON.stringify({ id: ticketId, status: newStatus }),\n})",
+    "answer": "Trimite update de status ca JSON. credentials same-origin include cookie-ul de sesiune PHPSESSID, ca serverul sa stie userul logat."
+  },
+  {
+    "id": "code-project-020",
+    "type": "code",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "response.ok",
+    "source": "assets/app.js",
+    "prompt": "De ce pastram response.ok separat de data?",
+    "snippet": "return response.json().then(function (data) {\n  return { ok: response.ok, data: data };\n});",
+    "answer": "response.ok spune daca HTTP status este 2xx. data contine raspunsul aplicatiei. Avem nevoie de ambele ca sa gestionam erori 401/404/422."
+  },
+  {
+    "id": "code-project-021",
+    "type": "code",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "textContent note",
+    "source": "assets/notes.js:48",
+    "prompt": "Ce risc ar exista cu innerHTML aici?",
+    "snippet": "var text = document.createElement('p');\ntext.className = 'note-text';\ntext.textContent = result.data.note.note;",
+    "answer": "Cu innerHTML, o nota introdusa de user ar putea fi interpretata ca HTML/script. textContent o afiseaza ca text sigur."
+  },
+  {
+    "id": "code-project-022",
+    "type": "code",
+    "category": "js",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "preventDefault note",
+    "source": "assets/notes.js:13",
+    "prompt": "Ce comportament opreste acest cod?",
+    "snippet": "form.addEventListener('submit', function (e) {\n  e.preventDefault();\n  // fetch note\n});",
+    "answer": "Opreste submitul normal al formularului si reloadul paginii, ca nota sa fie trimisa asincron prin fetch."
+  },
+  {
+    "id": "code-project-023",
+    "type": "code",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 4,
+    "title": "Schema tickets",
+    "source": "schema.sql:20",
+    "prompt": "Ce rol au user_id si status in aceasta tabela?",
+    "snippet": "CREATE TABLE tickets (\n    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,\n    user_id INT UNSIGNED NOT NULL,\n    title VARCHAR(150) NOT NULL,\n    status ENUM('Open', 'In Progress', 'On Hold', 'Closed') NOT NULL DEFAULT 'Open'\n);",
+    "answer": "user_id leaga ticketul de proprietar, iar status este limitat la valori valide prin ENUM si are default Open."
+  },
+  {
+    "id": "code-project-024",
+    "type": "code",
+    "category": "mysql",
+    "difficulty": 3,
+    "priority": 5,
+    "title": "Foreign key cascade",
+    "source": "schema.sql:29",
+    "prompt": "Ce se intampla cand userul este sters?",
+    "snippet": "CONSTRAINT fk_tickets_user\n    FOREIGN KEY (user_id) REFERENCES users(id)\n    ON DELETE CASCADE",
+    "answer": "Toate tichetele userului sunt sterse automat. Este bun pentru integritate, dar periculos daca stergerea userului este accidentala."
+  },
+  {
+    "id": "code-project-025",
+    "type": "code",
+    "category": "architecture",
+    "difficulty": 4,
+    "priority": 4,
+    "title": "Cum ar arata OOP",
+    "source": "refactor concept",
+    "prompt": "Cum ai muta acest query intr-o clasa?",
+    "snippet": "final class TicketRepository\n{\n    public function findForUser(PDO $pdo, int $id, int $userId): ?array\n    {\n        $stmt = $pdo->prepare('SELECT * FROM tickets WHERE id = ? AND user_id = ?');\n        $stmt->execute([$id, $userId]);\n        return $stmt->fetch() ?: null;\n    }\n}",
+    "answer": "Un repository izoleaza accesul la date. Controllerul nu mai stie SQL-ul exact, ci apeleaza findForUser. Tot pastram ownership check in query."
+  }
+]

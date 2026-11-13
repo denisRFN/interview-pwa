@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d3328">
+  <title>HelpDesk Interview Lab</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="#/quiz" aria-label="HelpDesk Interview Lab home">
+      <span class="brand-mark">H</span>
+      <span><strong>HelpDesk Interview Lab</strong><small>PWA pentru interviu junior PHP</small></span>
+    </a>
+    <nav class="nav" aria-label="Main navigation">
+      <a href="#/quiz">Grila</a>
+      <a href="#/code">Cod</a>
+      <a href="#/review">Review</a>
+      <a href="#/cheatsheet">Cheat Sheet</a>
+    </nav>
+    <button class="ghost" id="install-btn" hidden>Instaleaza</button>
+  </header>
+  <main id="app" class="shell" tabindex="-1"></main>
+  <template id="question-template">
+    <article class="question-card">
+      <div class="question-meta"></div>
+      <h2 class="question-title"></h2>
+      <p class="question-prompt"></p>
+      <pre class="snippet" hidden><code></code></pre>
+      <div class="question-body"></div>
+      <div class="answer-panel" hidden></div>
+      <div class="actions"></div>
+    </article>
+  </template>
+  <script src="assets/app.js" type="module"></script>
+</body>
+</html>
